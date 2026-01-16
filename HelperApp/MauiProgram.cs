@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using HelperApp.Services;
+using HelperApp.ViewModels;
+using HelperApp.Views;
+using Microsoft.Extensions.Logging;
 
 namespace HelperApp;
 
@@ -13,13 +16,26 @@ public static class MauiProgram
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-            });
+            })
+
+            // Сервисы
+            .Services
+            .AddSingleton<IApiClient, ApiClient>()
+            .AddSingleton<IAuthService, AuthService>()
+            .AddSingleton<ITaskService, MockTaskService>()
+
+            // ViewModels
+            .AddTransient<LoginViewModel>()
+            .AddTransient<MainViewModel>()
+
+            // Views
+            .AddTransient<LoginPage>()
+            .AddTransient<MainPage>()
+            .AddSingleton<AppShell>();
 
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
-
         return builder.Build();
     }
 }

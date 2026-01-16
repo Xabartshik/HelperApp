@@ -1,14 +1,53 @@
-﻿<?xml version = "1.0" encoding = "UTF-8" ?>
-<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:HelperApp"
-             x:Class="HelperApp.App">
+<?xml version = "1.0" encoding = "UTF-8" ?>
+<Application
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:HelperApp.Converters"
+    x:Class="HelperApp.App">
+
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Value Converters -->
+            <local:StringToBoolConverter x:Key="StringToBoolConverter" />
+            <local:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+            <local:EmptyCollectionToBoolConverter x:Key="EmptyCollectionToBoolConverter" />
+
+            <!-- Colors -->
+            <Color x:Key="PrimaryColor">#7c3aed</Color>
+            <Color x:Key="PrimaryDarkColor">#6d28d9</Color>
+            <Color x:Key="BackgroundColor">#1a1a2e</Color>
+            <Color x:Key="SurfaceColor">#2a2a3e</Color>
+            <Color x:Key="TextPrimary">#ffffff</Color>
+            <Color x:Key="TextSecondary">#b0b0b0</Color>
+            <Color x:Key="AccentColor">#e0b0ff</Color>
+            <Color x:Key="ErrorColor">#ff6b6b</Color>
+            <Color x:Key="WarningColor">#ffd93d</Color>
+
+            <!-- Styles -->
+            <Style TargetType="Page" ApplyToDerivedTypes="True">
+                <Setter Property="BackgroundColor" Value="{StaticResource BackgroundColor}" />
+            </Style>
+
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+            </Style>
+
+            <Style TargetType="Button" ApplyToDerivedTypes="True">
+                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
+                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="15,10" />
+            </Style>
+
+            <Style TargetType="Entry">
+                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceColor}" />
+                <Setter Property="TextColor" Value="{StaticResource TextPrimary}" />
+                <Setter Property="PlaceholderColor" Value="{StaticResource TextSecondary}" />
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
+
 </Application>

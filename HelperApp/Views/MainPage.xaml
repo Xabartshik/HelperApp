@@ -1,12 +1,160 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-x:Class="HelperApp.Views.MainPage">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HelperApp.Views.MainPage"
+             Title="Главная"
+             BackgroundColor="#1a1a2e">
 
+    <VerticalStackLayout Padding="0" Spacing="0">
 
-    <VerticalStackLayout Padding="30" Spacing="20">
-        <Label x:Name="WelcomeLabel" FontSize="20" />
-        <Button Text="Закрытая страница" Clicked="OnProtectedClicked" />
-        <Button Text="Выйти" Clicked="OnLogoutClicked" />
+        <!-- Header -->
+        <Grid 
+            Padding="20,15"
+            ColumnDefinitions="*,Auto"
+            BackgroundColor="#2a2a3e"
+            ColumnSpacing="15">
+
+            <!-- User Info -->
+            <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                <Label 
+                    Text="{Binding EmployeeId, StringFormat='ID: {0}'}"
+                    FontSize="16"
+                    FontAttributes="Bold"
+                    TextColor="#e0b0ff" />
+                <Label 
+                    Text="{Binding Role}"
+                    FontSize="13"
+                    TextColor="#b0b0b0" />
+            </VerticalStackLayout>
+
+            <!-- Logout Button -->
+            <Button 
+                Grid.Column="1"
+                Text="Выход"
+                Command="{Binding LogoutCommand}"
+                BackgroundColor="#ff6b6b"
+                TextColor="#ffffff"
+                FontSize="13"
+                CornerRadius="6"
+                Padding="15,8"
+                VerticalOptions="Center" />
+
+        </Grid>
+
+        <!-- No Network Alert -->
+        <Label 
+            Text="⚠️ Нет подключения к сети"
+            TextColor="#ffffff"
+            BackgroundColor="#ff6b6b"
+            Padding="20,10"
+            FontSize="14"
+            HorizontalTextAlignment="Center"
+            IsVisible="{Binding HasNetwork, Converter={StaticResource InvertedBoolConverter}}" />
+
+        <!-- Refresh Button & Status -->
+        <Grid 
+            Padding="20,10"
+            ColumnDefinitions="*,Auto"
+            BackgroundColor="#2a2a3e"
+            ColumnSpacing="10">
+
+            <Label 
+                Text="Мои задачи"
+                FontSize="16"
+                FontAttributes="Bold"
+                TextColor="#e0b0ff"
+                VerticalOptions="Center" />
+
+            <Button 
+                Grid.Column="1"
+                Text="Обновить"
+                Command="{Binding RefreshTasksCommand}"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
+                BackgroundColor="#7c3aed"
+                TextColor="#ffffff"
+                FontSize="12"
+                CornerRadius="6"
+                Padding="12,6" />
+
+        </Grid>
+
+        <!-- Loading Indicator -->
+        <ActivityIndicator 
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="#7c3aed"
+            Margin="0,20,0,0" />
+
+        <!-- Tasks List -->
+        <CollectionView 
+            ItemsSource="{Binding Tasks}"
+            SelectionMode="Single"
+            Margin="0,0,0,0">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <StackLayout 
+                        Padding="15"
+                        Margin="10,8,10,0"
+                        Spacing="8"
+                        BackgroundColor="#2a2a3e">
+
+                        <!-- Task Title -->
+                        <Label 
+                            Text="{Binding Title}"
+                            FontSize="16"
+                            FontAttributes="Bold"
+                            TextColor="#e0b0ff"
+                            LineBreakMode="WordWrap" />
+
+                        <!-- Task Description -->
+                        <Label 
+                            Text="{Binding Description}"
+                            FontSize="13"
+                            TextColor="#b0b0b0"
+                            LineBreakMode="WordWrap" />
+
+                        <!-- Task Status and Date -->
+                        <Grid 
+                            ColumnDefinitions="*,Auto"
+                            ColumnSpacing="10">
+
+                            <Label 
+                                Text="{Binding Status, StringFormat='Статус: {0}'}"
+                                FontSize="12"
+                                TextColor="#7c3aed"
+                                VerticalOptions="Center" />
+
+                            <Label 
+                                Grid.Column="1"
+                                Text="{Binding CreatedAt, StringFormat='d'}"
+                                FontSize="12"
+                                TextColor="#888888"
+                                VerticalOptions="Center" />
+
+                        </Grid>
+
+                    </StackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+        <!-- Empty State -->
+        <StackLayout 
+            Padding="20"
+            VerticalOptions="CenterAndExpand"
+            HorizontalOptions="CenterAndExpand"
+            IsVisible="{Binding Tasks, Converter={StaticResource EmptyCollectionToBoolConverter}}">
+
+            <Label 
+                Text="Задач не найдено"
+                FontSize="16"
+                TextColor="#b0b0b0"
+                HorizontalTextAlignment="Center" />
+
+        </StackLayout>
+
     </VerticalStackLayout>
+
 </ContentPage>

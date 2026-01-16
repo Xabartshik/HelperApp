@@ -1,30 +1,27 @@
-using HelperApp.Models;
-
+using HelperApp.ViewModels;
 
 namespace HelperApp.Views;
 
-
 public partial class MainPage : ContentPage
 {
-    private readonly MobileAppUserDto _user;
+    private readonly MainViewModel _viewModel;
 
-
-    public MainPage(MobileAppUserDto user)
+    public MainPage(MainViewModel viewModel)
     {
         InitializeComponent();
-        _user = user;
-        WelcomeLabel.Text = $"Добро пожаловать, {_user.EmployeeId} ({_user.Role})";
+        _viewModel = viewModel;
+        BindingContext = viewModel;
     }
 
-
-    private async void OnProtectedClicked(object sender, EventArgs e)
+    protected override async void OnAppearing()
     {
-        await Navigation.PushAsync(new ProtectedPage(_user));
+        base.OnAppearing();
+        await _viewModel.InitializeAsync();
     }
 
-
-    private async void OnLogoutClicked(object sender, EventArgs e)
+    protected override void OnDisappearing()
     {
-        await Navigation.PopToRootAsync();
+        base.OnDisappearing();
+        _viewModel.LogoutCommand.Execute(null);
     }
 }

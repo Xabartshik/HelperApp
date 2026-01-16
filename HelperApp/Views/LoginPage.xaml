@@ -1,13 +1,114 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-x:Class="HelperApp.Views.LoginPage">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HelperApp.Views.LoginPage"
+             Title="Вход"
+             BackgroundColor="#1a1a2e">
+
+    <VerticalStackLayout 
+        Padding="20"
+        Spacing="20"
+        VerticalOptions="Center"
+        HorizontalOptions="Fill">
+
+        <!-- Логотип / Заголовок -->
+        <Label 
+            Text="HelperApp"
+            FontSize="32"
+            FontAttributes="Bold"
+            TextColor="#e0b0ff"
+            HorizontalTextAlignment="Center"
+            Margin="0,0,0,20" />
+
+        <!-- EmployeeId Input -->
+        <Label 
+            Text="EmployeeId"
+            TextColor="#b0b0b0"
+            FontSize="14" />
+        <Border
+    Stroke="#7c3aed"
+    StrokeThickness="1"
+    BackgroundColor="#2a2a3e"
+    Padding="15,10">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="8" />
+            </Border.StrokeShape>
+
+            <Entry
+        x:Name="EmployeeIdEntry"
+        Placeholder="Введите EmployeeId"
+        PlaceholderColor="#666666"
+        Text="{Binding EmployeeId}"
+        Keyboard="Numeric"
+        BackgroundColor="Transparent"
+        TextColor="#ffffff"
+        FontSize="16" />
+        </Border>
 
 
-    <VerticalStackLayout Padding="30" Spacing="15">
-        <Entry x:Name="UsernameEntry" Placeholder="Employee ID" Keyboard="Numeric" />
-        <Entry x:Name="PasswordEntry" Placeholder="Пароль" IsPassword="True" />
-        <Button Text="Войти" Clicked="OnLoginClicked" />
-        <Label x:Name="ErrorLabel" TextColor="Red" />
+        <!-- Password Input -->
+        <Label 
+            Text="Пароль"
+            TextColor="#b0b0b0"
+            FontSize="14" />
+        <Border
+    Stroke="#7c3aed"
+    StrokeThickness="1"
+    BackgroundColor="#2a2a3e"
+    Padding="15,10">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="8" />
+            </Border.StrokeShape>
+
+            <Entry
+        x:Name="PasswordEntry"
+        Placeholder="Введите пароль"
+        PlaceholderColor="#666666"
+        Text="{Binding Password}"
+        IsPassword="True"
+        BackgroundColor="Transparent"
+        TextColor="#ffffff"
+        FontSize="16" />
+        </Border>
+
+
+        <!-- Error Message -->
+        <Label 
+            Text="{Binding ErrorMessage}"
+            TextColor="#ff6b6b"
+            FontSize="14"
+            IsVisible="{Binding ErrorMessage, Converter={StaticResource StringToBoolConverter}}"
+            Margin="0,10,0,0" />
+
+        <!-- No Network Message -->
+        <Label 
+            Text="⚠️ Нет подключения к сети"
+            TextColor="#ffd93d"
+            FontSize="14"
+            IsVisible="{Binding HasNetwork, Converter={StaticResource InvertedBoolConverter}}"
+            HorizontalTextAlignment="Center"
+            Margin="0,10,0,0" />
+
+        <!-- Login Button -->
+        <Button 
+            Text="Войти"
+            Command="{Binding LoginCommand}"
+            IsEnabled="{Binding IsBusy, Converter={StaticResource InvertedBoolConverter}}"
+            BackgroundColor="#7c3aed"
+            TextColor="#ffffff"
+            FontSize="16"
+            FontAttributes="Bold"
+            CornerRadius="8"
+            Padding="20,15"
+            Margin="0,20,0,0" />
+
+        <!-- Loading Indicator -->
+        <ActivityIndicator 
+            IsRunning="{Binding IsBusy}"
+            IsVisible="{Binding IsBusy}"
+            Color="#7c3aed"
+            Margin="0,20,0,0" />
+
     </VerticalStackLayout>
+
 </ContentPage>
