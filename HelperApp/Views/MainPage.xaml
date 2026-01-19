@@ -16,17 +16,13 @@
 
             <!-- User Info -->
             <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
-                <Label 
-                    Text="{Binding EmployeeId, StringFormat='ID: {0}'}"
-                    FontSize="16"
-                    FontAttributes="Bold"
-                    TextColor="#e0b0ff" />
+                <Label Text="{Binding FullName}" FontSize="18" FontAttributes="Bold"/>
+                <Label Text="{Binding Role, StringFormat='Должность: {0}'}" FontSize="14"/>
                 <Label 
                     Text="{Binding Role}"
                     FontSize="13"
                     TextColor="#b0b0b0" />
             </VerticalStackLayout>
-
             <!-- Logout Button -->
             <Button 
                 Grid.Column="1"

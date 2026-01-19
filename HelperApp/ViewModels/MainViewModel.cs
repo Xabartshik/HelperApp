@@ -14,6 +14,15 @@ public partial class MainViewModel : ObservableObject
     private readonly IApiClient _apiClient;
 
     [ObservableProperty]
+    private string firstName = string.Empty;
+
+    [ObservableProperty]
+    private string lastName = string.Empty;
+
+    [ObservableProperty]
+    private string fullName = string.Empty;
+
+    [ObservableProperty]
     private int employeeId;
 
     [ObservableProperty]
@@ -57,6 +66,9 @@ public partial class MainViewModel : ObservableObject
         }
 
         EmployeeId = currentUser.EmployeeId;
+        FirstName = currentUser.FirstName;
+        LastName = currentUser.LastName;
+        FullName = currentUser.FullName;
         Role = currentUser.Role;
 
         _logger.LogInformation("MainViewModel инициализирована для EmployeeId={EmployeeId}", EmployeeId);
@@ -117,7 +129,7 @@ public partial class MainViewModel : ObservableObject
         _cts?.Cancel();
         await _authService.LogoutAsync();
         _logger.LogInformation("Выход из приложения");
-        await Shell.Current.GoToAsync("login");
+        await Shell.Current.GoToAsync("///login");
     }
 
     private async Task StartPeriodicTaskSync(CancellationToken cancellationToken)

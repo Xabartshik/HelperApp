@@ -45,7 +45,10 @@ public class AuthService : IAuthService
 
             _currentUser = new CurrentUser
             {
+                Id = response.User.Id,
                 EmployeeId = response.User.EmployeeId,
+                FirstName = response.User.FirstName,    
+                LastName = response.User.LastName,        
                 Role = response.User.Role,
                 AccessToken = response.AccessToken,
                 TokenExpiresAt = expiresAt
@@ -57,6 +60,8 @@ public class AuthService : IAuthService
             // Сохраняем метаданные пользователя в Preferences
             Preferences.Set(EmployeeIdKey, response.User.EmployeeId);
             Preferences.Set(RoleKey, response.User.Role);
+            Preferences.Set("FirstName", response.User.FirstName); 
+            Preferences.Set("LastName", response.User.LastName);   
 
             // Устанавливаем токен в ApiClient
             _apiClient.SetAuthorizationToken(response.AccessToken);
