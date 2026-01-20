@@ -14,8 +14,117 @@ namespace HelperApp.Services
         Task<List<InventoryTaskDetailsDto>?> GetUserPendingTasksAsync(int userId, CancellationToken cancellationToken = default);
         Task<List<InventoryTaskDetailsDto>?> GetNewTasksSinceAsync(DateTime? since = null, CancellationToken cancellationToken = default);
         Task<TaskCheckResponse?> CheckForNewTasksAsync(DateTime? since = null, CancellationToken cancellationToken = default);
+
+        Task<WorkerTaskCheckResponse?> CheckForNewWorkerTasksAsync(int userId, DateTime? since = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Получение задач для конкретного работника (детали задач),
+        /// использует TaskControl-эндпоинты, которые ты добавил.
+        /// </summary>
+        Task<IEnumerable<InventoryTaskDto>?> GetWorkerTasksAsync(
+            int userId,
+            DateTime? since = null,
+            CancellationToken cancellationToken = default);
         void SetBaseAddress(string baseAddress);
         void SetAuthToken(string token);
+    }
+    public class WorkerTaskCheckResponse
+    {
+        public bool HasNewTasks { get; set; }
+        public DateTime LastChecked { get; set; }
+    }
+
+    /// <summary>
+    /// DTO задачи инвентаризации, приходящей из TaskControl.
+    /// </summary>
+    public class InventoryTaskDto
+    {
+        /// <summary>
+        /// Идентификатор задачи в TaskControl.
+        /// </summary>
+        public int TaskId { get; set; }
+
+        /// <summary>
+        /// Код зоны / участка, для которого выдана задача.
+        /// Например, "A-01-03".
+        /// </summary>
+        public string ZoneCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Человекочитаемое имя/описание задачи (опционально).
+        /// </summary>
+        public string? Title { get; set; }
+
+        /// <summary>
+        /// Подробное описание задачи (если в TaskControl оно есть).
+        /// </summary>
+        public string? Description { get; set; }
+
+        /// <summary>
+        /// Дата/время, когда задача была создана/инициирована.
+        /// </summary>
+        public DateTime InitiatedAt { get; set; }
+
+        /// <summary>
+        /// Текущий статус задачи (например, "New", "InProgress", "Completed").
+        /// </summary>
+        public string Status { get; set; } = "New";
+
+        /// <summary>
+        /// Приоритет задачи (если используется: 0 - обычный, 1 - высокий и т.п.).
+        /// </summary>
+        public int Priority { get; set; }
+
+        /// <summary>
+        /// Идентификатор работника, которому назначена задача.
+        /// </summary>
+        public int AssignedWorkerId { get; set; }
+
+        /// <summary>
+        /// Позиции/строки задачи (номенклатура, ожидаемое количество и т.п.).
+        /// </summary>
+        public List<InventoryTaskItemDto> Items { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Элемент задачи инвентаризации.
+    /// </summary>
+    public class InventoryTaskItemDto
+    {
+        /// <summary>
+        /// Внутренний идентификатор строки / позиции задачи.
+        /// </summary>
+        public int LineId { get; set; }
+
+        /// <summary>
+        /// Код товара / SKU / артикул.
+        /// </summary>
+        public string ItemCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Человекочитаемое наименование товара.
+        /// </summary>
+        public string ItemName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Ожидаемое количество (по данным учёта).
+        /// </summary>
+        public decimal ExpectedQuantity { get; set; }
+
+        /// <summary>
+        /// Фактически найденное количество (если уже что-то посчитано).
+        /// </summary>
+        public decimal? ActualQuantity { get; set; }
+
+        /// <summary>
+        /// Единица измерения (шт, кг, упаковка и т.п.).
+        /// </summary>
+        public string UnitOfMeasure { get; set; } = "шт";
+
+        /// <summary>
+        /// Ячейка / подзона (если задаётся точнее, чем ZoneCode).
+        /// </summary>
+        public string? LocationCode { get; set; }
     }
 
     /// <summary>
@@ -271,6 +380,49 @@ namespace HelperApp.Services
                 _logger.LogError(ex, "Error checking for new inventory tasks");
                 return null;
             }
+        }
+
+        // ------------------ НОВОЕ: лёгкий чек для конкретного работника ------------------
+
+        public async Task<WorkerTaskCheckResponse?> CheckForNewWorkerTasksAsync(
+            int userId,
+            DateTime? since = null,
+            CancellationToken cancellationToken = default)
+        {
+            // GET api/v1/inventory/worker/{userId}/check-new?since=...
+            var url = $"api/v1/inventory/worker/{userId}/check-new";
+
+            if (since.HasValue)
+            {
+                // ISO 8601, UTC
+                var iso = since.Value.ToUniversalTime().ToString("o");
+                url += $"?since={Uri.EscapeDataString(iso)}";
+            }
+
+            return await _httpClient.GetFromJsonAsync<WorkerTaskCheckResponse>(url, cancellationToken);
+        }
+
+        // ------------------ НОВОЕ: получение задач работника ------------------
+
+        public async Task<IEnumerable<InventoryTaskDto>?> GetWorkerTasksAsync(
+            int userId,
+            DateTime? since = null,
+            CancellationToken cancellationToken = default)
+        {
+            // например: GET api/v1/inventory/worker/{userId}/tasks?since=...
+            var url = $"api/v1/inventory/worker/{userId}/tasks";
+
+            if (since.HasValue)
+            {
+                var iso = since.Value.ToUniversalTime().ToString("o");
+                url += $"?since={Uri.EscapeDataString(iso)}";
+            }
+
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadFromJsonAsync<IEnumerable<InventoryTaskDto>>(cancellationToken: cancellationToken);
         }
     }
 

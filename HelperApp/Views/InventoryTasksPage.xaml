@@ -6,12 +6,18 @@
              BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
              Padding="10">
 
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*" Spacing="10">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*">
+        <Grid.RowSpacing>10</Grid.RowSpacing>
+
         <!-- Header with controls -->
-        <StackLayout Grid.Row="0" Spacing="10" Padding="5">
+        <StackLayout Grid.Row="0" Padding="5">
+            <StackLayout.Spacing>10</StackLayout.Spacing>
+
             <Label Text="Inventory Tasks" FontSize="24" FontAttributes="Bold" />
-            
-            <StackLayout Orientation="Horizontal" Spacing="5">
+
+            <StackLayout Orientation="Horizontal">
+                <StackLayout.Spacing>5</StackLayout.Spacing>
+
                 <Button Text="Refresh" 
                         Command="{Binding RefreshTasksCommand}"
                         HorizontalOptions="FillAndExpand" />
@@ -29,57 +35,63 @@
         <CollectionView Grid.Row="1" 
                         ItemsSource="{Binding Tasks}"
                         SelectionMode="Single"
-                        SelectedItemChangedCommand="{Binding SelectTaskCommand}"
                         SelectionChangedCommand="{Binding SelectTaskCommand}"
-                        SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}"
-                        Spacing="10">
+                        SelectionChangedCommandParameter="{Binding SelectedItem, Source={RelativeSource Self}}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical" ItemSpacing="5" />
             </CollectionView.ItemsLayout>
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <StackLayout Padding="10" Spacing="5" 
-                                 BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray900}}"
-                                 Margin="0,5">
+                    <StackLayout Padding="10">
+                        <StackLayout.Spacing>5</StackLayout.Spacing>
+
                         <!-- Task Card -->
                         <Frame CornerRadius="10" 
                                BorderColor="{StaticResource Primary}" 
                                HasShadow="True"
                                Padding="15"
                                Margin="0">
-                            <StackLayout Spacing="8">
-                                <StackLayout Orientation="Horizontal" Spacing="10">
+                            <StackLayout>
+                                <StackLayout.Spacing>8</StackLayout.Spacing>
+
+                                <StackLayout Orientation="Horizontal">
+                                    <StackLayout.Spacing>10</StackLayout.Spacing>
                                     <Label Text="Task ID:" FontAttributes="Bold" WidthRequest="80" />
                                     <Label Text="{Binding TaskId}" />
                                 </StackLayout>
 
-                                <StackLayout Orientation="Horizontal" Spacing="10">
+                                <StackLayout Orientation="Horizontal">
+                                    <StackLayout.Spacing>10</StackLayout.Spacing>
                                     <Label Text="Zone:" FontAttributes="Bold" WidthRequest="80" />
                                     <Label Text="{Binding ZoneCode}" FontSize="16" />
                                 </StackLayout>
 
-                                <StackLayout Orientation="Horizontal" Spacing="10">
+                                <StackLayout Orientation="Horizontal">
+                                    <StackLayout.Spacing>10</StackLayout.Spacing>
                                     <Label Text="Items:" FontAttributes="Bold" WidthRequest="80" />
                                     <Label Text="{Binding TotalItems}" />
                                 </StackLayout>
 
-                                <StackLayout Orientation="Horizontal" Spacing="10">
+                                <StackLayout Orientation="Horizontal">
+                                    <StackLayout.Spacing>10</StackLayout.Spacing>
                                     <Label Text="Created:" FontAttributes="Bold" WidthRequest="80" />
                                     <Label Text="{Binding InitiatedAt, StringFormat='{0:yyyy-MM-dd HH:mm}'}"
                                            FontSize="12" 
                                            TextColor="{AppThemeBinding Light={StaticResource Gray700}, Dark={StaticResource Gray400}}" />
                                 </StackLayout>
 
-                                <Indicator IsRunning="{Binding HasBeenViewed, Converter={StaticResource InvertedBoolConverter}}" 
-                                          IsVisible="{Binding HasBeenViewed, Converter={StaticResource InvertedBoolConverter}}"
-                                          Color="{StaticResource Accent}" />
+                                <!-- Activity Indicator for "not viewed" status -->
+                                <ActivityIndicator IsRunning="{Binding HasBeenViewed, Converter={StaticResource InvertedBoolConverter}}" 
+                                                  IsVisible="{Binding HasBeenViewed, Converter={StaticResource InvertedBoolConverter}}"
+                                                  Color="{StaticResource Accent}" />
                             </StackLayout>
                         </Frame>
                     </StackLayout>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.EmptyView>
-                <StackLayout Padding="20" Spacing="10" VerticalOptions="Center" HorizontalOptions="Center">
+                <StackLayout Padding="20" VerticalOptions="Center" HorizontalOptions="Center">
+                    <StackLayout.Spacing>10</StackLayout.Spacing>
                     <Label Text="No tasks found" FontSize="18" FontAttributes="Bold" />
                     <Label Text="Pull down to refresh or tap Load All" FontSize="14" />
                 </StackLayout>
@@ -87,25 +99,34 @@
         </CollectionView>
 
         <!-- Task Details Panel -->
-        <StackLayout Grid.Row="2" Spacing="10" IsVisible="{Binding SelectedTaskDetails, Converter={StaticResource IsNotNullConverter}}">
+        <StackLayout Grid.Row="2" IsVisible="{Binding SelectedTaskDetails, Converter={StaticResource IsNotNullConverter}}">
+            <StackLayout.Spacing>10</StackLayout.Spacing>
+
             <BoxView Color="{StaticResource Primary}" HeightRequest="1" />
             <Label Text="Task Details" FontSize="18" FontAttributes="Bold" />
-            
+
             <ScrollView HeightRequest="300">
-                <StackLayout Padding="10" Spacing="5">
+                <StackLayout Padding="10">
+                    <StackLayout.Spacing>5</StackLayout.Spacing>
+
                     <!-- Zone Info -->
                     <Frame CornerRadius="8" Padding="10" Margin="0" BorderColor="{StaticResource Primary}">
-                        <StackLayout Spacing="5">
+                        <StackLayout>
+                            <StackLayout.Spacing>5</StackLayout.Spacing>
+
                             <Label Text="Zone Information" FontAttributes="Bold" FontSize="14" />
-                            <StackLayout Orientation="Horizontal" Spacing="10">
+                            <StackLayout Orientation="Horizontal">
+                                <StackLayout.Spacing>10</StackLayout.Spacing>
                                 <Label Text="Zone Code:" FontAttributes="Bold" WidthRequest="100" />
                                 <Label Text="{Binding SelectedTaskDetails.ZoneCode}" />
                             </StackLayout>
-                            <StackLayout Orientation="Horizontal" Spacing="10">
+                            <StackLayout Orientation="Horizontal">
+                                <StackLayout.Spacing>10</StackLayout.Spacing>
                                 <Label Text="Total Items:" FontAttributes="Bold" WidthRequest="100" />
                                 <Label Text="{Binding SelectedTaskDetails.TotalExpectedCount}" />
                             </StackLayout>
-                            <StackLayout Orientation="Horizontal" Spacing="10">
+                            <StackLayout Orientation="Horizontal">
+                                <StackLayout.Spacing>10</StackLayout.Spacing>
                                 <Label Text="Initiated:" FontAttributes="Bold" WidthRequest="100" />
                                 <Label Text="{Binding SelectedTaskDetails.InitiatedAt, StringFormat='{0:g}'}" FontSize="12" />
                             </StackLayout>
@@ -123,16 +144,19 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
                                 <Frame CornerRadius="5" Padding="10" Margin="0,2" HasShadow="False">
-                                    <StackLayout Spacing="3">
-                                        <StackLayout Orientation="Horizontal" Spacing="10">
+                                    <StackLayout>
+                                        <StackLayout.Spacing>3</StackLayout.Spacing>
+
+                                        <StackLayout Orientation="Horizontal">
+                                            <StackLayout.Spacing>10</StackLayout.Spacing>
                                             <Label Text="{Binding ItemName}" FontAttributes="Bold" />
                                             <Label Text="{Binding PositionCode}" FontSize="12" TextColor="Gray" />
                                         </StackLayout>
-                                        <Label Text="Expected Qty: {Binding ExpectedQuantity}" FontSize="12" />
-                                        <Label Text="Dimensions: {Binding Length}L x {Binding Width}W x {Binding Height}H mm" 
+                                        <Label Text="{Binding ExpectedQuantity, StringFormat='Expected Qty: {0}'}" FontSize="12" />
+                                        <Label Text="{Binding ., StringFormat='Dimensions: {0}L x {1}W x {2}H mm'}" 
                                                FontSize="11" 
                                                TextColor="{AppThemeBinding Light={StaticResource Gray700}, Dark={StaticResource Gray400}}" />
-                                        <Label Text="Weight: {Binding Weight} kg" FontSize="11" />
+                                        <Label Text="{Binding Weight, StringFormat='Weight: {0} kg'}" FontSize="11" />
                                     </StackLayout>
                                 </Frame>
                             </DataTemplate>

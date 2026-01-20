@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using HelperApp.Models;
 using System.Windows.Input;
+using HelperApp.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace HelperApp.ViewModels
 {
@@ -13,24 +16,23 @@ namespace HelperApp.ViewModels
         private readonly IInventoryApiService _apiService;
         private CancellationTokenSource? _pollingCts;
         private DateTime _lastTaskCheck;
-        private const int PollingIntervalSeconds = 30; // Adjust based on your needs
+        private const int PollingIntervalSeconds = 30;
 
         [ObservableProperty]
-        ObservableCollection<InventoryTaskSummary> tasks = new();
+        private ObservableCollection<InventoryTaskSummary> tasks = new();
 
         [ObservableProperty]
-        bool isLoading;
+        private bool isLoading;
 
         [ObservableProperty]
-        string statusMessage = "Ready";
+        private string statusMessage = "Ready";
 
         [ObservableProperty]
-        InventoryTaskDetailsDto? selectedTaskDetails;
+        private InventoryTaskDetailsDto? selectedTaskDetails;
 
         [ObservableProperty]
-        bool hasNewTasks;
+        private bool hasNewTasks;
 
-        public ICommand RefreshTasksCommand { get; }
         public ICommand SelectTaskCommand { get; }
         public ICommand StopPollingCommand { get; }
 
@@ -39,7 +41,6 @@ namespace HelperApp.ViewModels
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
             _lastTaskCheck = DateTime.UtcNow;
 
-            RefreshTasksCommand = new AsyncRelayCommand(RefreshTasksAsync);
             SelectTaskCommand = new AsyncRelayCommand<InventoryTaskSummary>(SelectTaskAsync);
             StopPollingCommand = new RelayCommand(StopPolling);
         }
@@ -72,7 +73,6 @@ namespace HelperApp.ViewModels
             _pollingCts = new CancellationTokenSource();
             _lastTaskCheck = DateTime.UtcNow;
             StatusMessage = "Started polling for tasks...";
-
             _ = PollTasksAsync(_pollingCts.Token);
         }
 
@@ -97,7 +97,6 @@ namespace HelperApp.ViewModels
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(TimeSpan.FromSeconds(PollingIntervalSeconds), cancellationToken);
-
                     await CheckForNewTasksAsync(cancellationToken);
                 }
             }
@@ -120,7 +119,6 @@ namespace HelperApp.ViewModels
             try
             {
                 var checkResponse = await _apiService.CheckForNewTasksAsync(_lastTaskCheck, cancellationToken);
-
                 if (checkResponse == null)
                 {
                     StatusMessage = "Failed to check tasks";
@@ -128,7 +126,6 @@ namespace HelperApp.ViewModels
                 }
 
                 HasNewTasks = checkResponse.HasNewTasks;
-
                 if (checkResponse.HasNewTasks && checkResponse.NewTaskCount > 0)
                 {
                     StatusMessage = $"Found {checkResponse.NewTaskCount} new task(s)!";
@@ -147,7 +144,11 @@ namespace HelperApp.ViewModels
         }
 
         /// <summary>
-        /// Refresh the list of tasks from server
+        /// Обновление списка задач по кнопке "Обновить".
+        /// Логика:
+        /// 1) Лёгкий чек на новые задачи для конкретного работника (TaskControl /worker/{userId}/check-new).
+        /// 2) Если новых задач нет — просто показать статус и выйти.
+        /// 3) Если есть — загрузить детали задач для работника и отобразить.
         /// </summary>
         [RelayCommand]
         public async Task RefreshTasksAsync(CancellationToken cancellationToken = default)
@@ -155,21 +156,43 @@ namespace HelperApp.ViewModels
             try
             {
                 IsLoading = true;
-                StatusMessage = "Loading tasks...";
+                StatusMessage = "Проверка новых задач...";
 
-                var newTasks = await _apiService.GetNewTasksSinceAsync(_lastTaskCheck, cancellationToken);
+                // TODO: подставь реальный userId (например, из настроек/профиля)
+                var userId = 123;
 
-                if (newTasks == null)
+                // 1. Лёгкий чек: есть ли вообще новые задачи для этого работника
+                var checkResponse = await _apiService.CheckForNewWorkerTasksAsync(userId, _lastTaskCheck, cancellationToken);
+
+                if (checkResponse == null)
                 {
-                    StatusMessage = "Failed to load tasks";
+                    StatusMessage = "Не удалось проверить наличие новых задач";
                     return;
                 }
 
-                // Convert DTOs to summary models
+                HasNewTasks = checkResponse.HasNewTasks;
+
+                if (!checkResponse.HasNewTasks)
+                {
+                    StatusMessage = "Новых задач нет";
+                    return;
+                }
+
+                StatusMessage = "Найдены новые задачи, загрузка...";
+
+                // 2. Если новые задачи есть — реально тянем детали задач по TaskControl-эндпоинту
+                var tasksForWorker = await _apiService.GetWorkerTasksAsync(userId, _lastTaskCheck, cancellationToken);
+
+                if (tasksForWorker == null)
+                {
+                    StatusMessage = "Не удалось загрузить задачи";
+                    return;
+                }
+
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     Tasks.Clear();
-                    foreach (var task in newTasks)
+                    foreach (var task in tasksForWorker)
                     {
                         Tasks.Add(new InventoryTaskSummary
                         {
@@ -182,12 +205,12 @@ namespace HelperApp.ViewModels
                     }
 
                     _lastTaskCheck = DateTime.UtcNow;
-                    StatusMessage = $"Loaded {Tasks.Count} task(s)";
+                    StatusMessage = $"Загружено {Tasks.Count} задач(и)";
                 });
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error: {ex.Message}";
+                StatusMessage = $"Ошибка при обновлении задач: {ex.Message}";
             }
             finally
             {
@@ -210,7 +233,6 @@ namespace HelperApp.ViewModels
             {
                 IsLoading = true;
                 StatusMessage = $"Loading details for task {task.TaskId}...";
-
                 var details = await _apiService.GetTaskDetailsAsync(task.TaskId, cancellationToken);
 
                 MainThread.BeginInvokeOnMainThread(() =>
@@ -247,7 +269,6 @@ namespace HelperApp.ViewModels
             {
                 IsLoading = true;
                 StatusMessage = "Loading all tasks...";
-
                 var allTasks = await _apiService.GetAllTasksAsync(cancellationToken);
 
                 if (allTasks == null)
@@ -304,7 +325,7 @@ namespace HelperApp.ViewModels
     /// <summary>
     /// Base ViewModel class (if you don't have one, you can simplify this)
     /// </summary>
-    public abstract class BaseViewModel : IDisposable
+    public abstract class BaseViewModel : ObservableObject, IDisposable
     {
         public virtual void OnNavigatedTo(object? parameter) { }
         public virtual void OnNavigatedFrom() { }
