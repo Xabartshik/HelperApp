@@ -1,6 +1,7 @@
 using HelperApp.Models.Auth;
 using HelperApp.Models.User;
 using System.IdentityModel.Tokens.Jwt;
+using static HelperApp.Services.ApiClient;
 
 namespace HelperApp.Services;
 

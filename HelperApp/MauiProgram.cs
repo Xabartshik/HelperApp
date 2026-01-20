@@ -22,7 +22,6 @@ public static class MauiProgram
             .Services
             .AddSingleton<IApiClient, ApiClient>()
             .AddSingleton<IAuthService, AuthService>()
-            .AddSingleton<ITaskService, MockTaskService>()
 
             // ViewModels
             .AddTransient<LoginViewModel>()
@@ -32,6 +31,7 @@ public static class MauiProgram
             .AddTransient<LoginPage>()
             .AddTransient<MainPage>()
             .AddSingleton<AppShell>();
+        builder.Services.AddSingleton<ITaskService, TaskControlTaskService>();
 
 #if DEBUG
         builder.Logging.AddDebug();

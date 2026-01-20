@@ -1,7 +1,19 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using HelperApp.Models.Inventory;
 using HelperApp.Models.Tasks;
+using Microsoft.Extensions.Logging;
+
 
 namespace HelperApp.Services;
 
+/// <summary>
+/// Mock сервис для разработки и тестирования без API
+/// Возвращает моковые данные (InventoryTaskItem) для демонстрации
+/// </summary>
 public class MockTaskService : ITaskService
 {
     private readonly ILogger<MockTaskService> _logger;
@@ -10,84 +22,136 @@ public class MockTaskService : ITaskService
 
     public MockTaskService(ILogger<MockTaskService> logger)
     {
-        _logger = logger;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<IEnumerable<TaskItem>> GetTasksForCurrentUserAsync(int employeeId)
+    public async Task<IEnumerable<TaskItemBase>> GetTasksForCurrentUserAsync(int employeeId)
     {
-        // Заглушка: возвращаем моковые задачи
-        await Task.Delay(500); // Имитируем задержку сети
+        // Имитируем задержку сети
+        await Task.Delay(500);
 
-        var mockTasks = new List<TaskItem>
+        var mockTasks = new List<TaskItemBase>
         {
-            new()
+            // Задача 1: Инвентаризация зоны A (в процессе)
+            new InventoryTaskItem
             {
-                Id = 1,
-                Title = "Завершить отчет",
-                Description = "Подготовить еженедельный отчет о деятельности",
-                Status = "New",
+                TaskId = 1,
+                Type = TaskType.Inventory,
+                BranchId = 1,
+                Title = "Инвентаризация: зона A",
+                Description = "Филиал: 1. Назначение: 101. Позиций: 3.",
+                Status = TaskStatus.InProgress,
+                Priority = 8,
+                CreatedAt = DateTime.Now.AddDays(-2),
+                CompletedAt = null,
+                AssignedToEmployeeId = employeeId,
+                AssignedAt = DateTime.Now.AddDays(-2),
+
+                AssignmentId = 101,
+                AssignmentStatus = InventoryAssignmentStatus.InProgress,
+                ZoneCode = "A",
+                Lines = new List<InventoryLineItem>
+                {
+                    new() { LineId = 1, ItemPositionId = 10, ExpectedQuantity = 5, ActualQuantity = 5, ZoneCode = "A", FirstLevelStorageType = "Rack", FlsNumber = "A-01" },
+                    new() { LineId = 2, ItemPositionId = 11, ExpectedQuantity = 10, ActualQuantity = null, ZoneCode = "A", FirstLevelStorageType = "Rack", FlsNumber = "A-02" },
+                    new() { LineId = 3, ItemPositionId = 12, ExpectedQuantity = 3, ActualQuantity = 4, ZoneCode = "A", FirstLevelStorageType = "Rack", FlsNumber = "A-03" }
+                }
+            },
+
+            // Задача 2: Инвентаризация зоны B (назначена)
+            new InventoryTaskItem
+            {
+                TaskId = 2,
+                Type = TaskType.Inventory,
+                BranchId = 1,
+                Title = "Инвентаризация: зона B",
+                Description = "Филиал: 1. Назначение: 102. Позиций: 2.",
+                Status = TaskStatus.Assigned,
+                Priority = 6,
                 CreatedAt = DateTime.Now.AddDays(-1),
-                AssignedToEmployeeId = employeeId
+                CompletedAt = null,
+                AssignedToEmployeeId = employeeId,
+                AssignedAt = DateTime.Now.AddDays(-1),
+
+                AssignmentId = 102,
+                AssignmentStatus = InventoryAssignmentStatus.Assigned,
+                ZoneCode = "B",
+                Lines = new List<InventoryLineItem>
+                {
+                    new() { LineId = 4, ItemPositionId = 20, ExpectedQuantity = 8, ActualQuantity = null, ZoneCode = "B", FirstLevelStorageType = "Shelf", FlsNumber = "B-01" },
+                    new() { LineId = 5, ItemPositionId = 21, ExpectedQuantity = 12, ActualQuantity = null, ZoneCode = "B", FirstLevelStorageType = "Shelf", FlsNumber = "B-02" }
+                }
             },
-            new()
+
+            // Задача 3: Инвентаризация зоны C (завершена)
+            new InventoryTaskItem
             {
-                Id = 2,
-                Title = "Провести встречу с командой",
-                Description = "Обсудить план на следующий спринт",
-                Status = "InProgress",
-                CreatedAt = DateTime.Now.AddDays(-3),
-                AssignedToEmployeeId = employeeId
-            },
-            new()
-            {
-                Id = 3,
-                Title = "Обновить документацию",
-                Description = "Актуализировать технологическую документацию",
-                Status = "New",
-                CreatedAt = DateTime.Now,
-                AssignedToEmployeeId = employeeId
+                TaskId = 3,
+                Type = TaskType.Inventory,
+                BranchId = 2,
+                Title = "Инвентаризация: зона C",
+                Description = "Филиал: 2. Назначение: 103. Позиций: 4.",
+                Status = TaskStatus.Completed,
+                Priority = 5,
+                CreatedAt = DateTime.Now.AddDays(-5),
+                CompletedAt = DateTime.Now.AddDays(-1),
+                AssignedToEmployeeId = employeeId,
+                AssignedAt = DateTime.Now.AddDays(-5),
+
+                AssignmentId = 103,
+                AssignmentStatus = InventoryAssignmentStatus.Completed,
+                ZoneCode = "C",
+                Lines = new List<InventoryLineItem>
+                {
+                    new() { LineId = 6, ItemPositionId = 30, ExpectedQuantity = 15, ActualQuantity = 15, ZoneCode = "C", FirstLevelStorageType = "Bin", FlsNumber = "C-01" },
+                    new() { LineId = 7, ItemPositionId = 31, ExpectedQuantity = 7, ActualQuantity = 7, ZoneCode = "C", FirstLevelStorageType = "Bin", FlsNumber = "C-02" },
+                    new() { LineId = 8, ItemPositionId = 32, ExpectedQuantity = 20, ActualQuantity = 20, ZoneCode = "C", FirstLevelStorageType = "Bin", FlsNumber = "C-03" },
+                    new() { LineId = 9, ItemPositionId = 33, ExpectedQuantity = 5, ActualQuantity = 5, ZoneCode = "C", FirstLevelStorageType = "Bin", FlsNumber = "C-04" }
+                }
             }
         };
 
-        _logger.LogInformation("Загруженно {Count} моковых задач для пользователя {EmployeeId}", 
+        _logger.LogInformation("Loaded {Count} mock tasks for employeeId={EmployeeId}",
             mockTasks.Count, employeeId);
 
         return mockTasks;
     }
 
-    public void StartPeriodicSync(Func<IEnumerable<TaskItem>, Task> onTasksUpdated, int intervalSeconds = 30)
+    public void StartPeriodicSync(Func<IEnumerable<TaskItemBase>, Task> onTasksUpdated, int intervalSeconds = 30)
     {
+        if (onTasksUpdated is null)
+            throw new ArgumentNullException(nameof(onTasksUpdated));
+
         if (_syncTask != null && !_syncTask.IsCompleted)
         {
-            _logger.LogWarning("Синхронизация уже запущена");
+            _logger.LogWarning("Task sync is already running");
             return;
         }
 
         _syncCts = new CancellationTokenSource();
-
         _syncTask = Task.Run(async () =>
         {
-            _logger.LogInformation("Синхронизация задач начата (интервал: {Interval}сек)", intervalSeconds);
+            _logger.LogInformation("Mock task sync started (interval: {IntervalSeconds}s)", intervalSeconds);
 
             while (!_syncCts.Token.IsCancellationRequested)
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), _syncCts.Token);
-
-                    // Здесь будет реальный вызов сервиса, пока что не делаем ничего
-                    _logger.LogDebug("Проверка новых задач...");
+                    _logger.LogDebug("Mock: Checking for new tasks...");
+                    // Mock не отправляет обновления
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogInformation("Синхронизация задач остановлена");
+                    _logger.LogInformation("Mock task sync cancelled");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Ошибка при синхронизации задач");
+                    _logger.LogError(ex, "Error during mock task sync");
                 }
             }
+
         }, _syncCts.Token);
     }
 
@@ -96,7 +160,7 @@ public class MockTaskService : ITaskService
         if (_syncCts != null && !_syncCts.Token.IsCancellationRequested)
         {
             _syncCts.Cancel();
-            _logger.LogInformation("Остановка синхронизации задач запрошена");
+            _logger.LogInformation("Stop mock task sync requested");
         }
     }
 }

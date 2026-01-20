@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HelperApp.Services;
+using static HelperApp.Services.ApiClient;
 
 namespace HelperApp.ViewModels;
 

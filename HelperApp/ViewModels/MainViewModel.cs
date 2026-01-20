@@ -3,9 +3,14 @@ using CommunityToolkit.Mvvm.Input;
 using HelperApp.Models.Tasks;
 using HelperApp.Services;
 using System.Collections.ObjectModel;
+using static HelperApp.Services.ApiClient;
 
 namespace HelperApp.ViewModels;
 
+/// <summary>
+/// ViewModel для главной страницы (списка задач)
+/// Управляет загрузкой и отображением задач, синхронизацией с сервером
+/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly IAuthService _authService;
@@ -37,8 +42,17 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool hasNetwork = true;
 
+    /// <summary>
+    /// Сырые задачи (для выполнения и детальной информации)
+    /// </summary>
     [ObservableProperty]
-    private ObservableCollection<TaskItem> tasks = new();
+    private ObservableCollection<TaskItemBase> rawTasks = new();
+
+    /// <summary>
+    /// Карточки задач для отображения (преобразованные из rawTasks)
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<TaskCardVm> taskCards = new();
 
     private CancellationTokenSource? _cts;
 
@@ -48,16 +62,15 @@ public partial class MainViewModel : ObservableObject
         ILogger<MainViewModel> logger,
         IApiClient apiClient)
     {
-        _authService = authService;
-        _taskService = taskService;
-        _logger = logger;
-        _apiClient = apiClient;
+        _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+        _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
     }
 
     public async Task InitializeAsync()
     {
         var currentUser = _authService.GetCurrentUser();
-
         if (currentUser == null)
         {
             _logger.LogWarning("CurrentUser не найден, перенаправление на логин");
@@ -90,14 +103,23 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var tasks = await _taskService.GetTasksForCurrentUserAsync(EmployeeId);
-            
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                Tasks.Clear();
+                RawTasks.Clear();
+                TaskCards.Clear();
+
                 foreach (var task in tasks)
                 {
-                    Tasks.Add(task);
+                    // Сохраняем сырую задачу для выполнения
+                    RawTasks.Add(task);
+
+                    // Маппим в карточку для отображения
+                    var card = TaskCardMapper.ToCard(task);
+                    TaskCards.Add(card);
                 }
+
+                _logger.LogInformation("Loaded {Count} task cards for display", TaskCards.Count);
             });
 
             HasNetwork = true;
@@ -146,15 +168,19 @@ public partial class MainViewModel : ObservableObject
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    Tasks.Clear();
+                    RawTasks.Clear();
+                    TaskCards.Clear();
+
                     foreach (var task in tasks)
                     {
-                        Tasks.Add(task);
+                        RawTasks.Add(task);
+                        var card = TaskCardMapper.ToCard(task);
+                        TaskCards.Add(card);
                     }
-                    HasNetwork = true;
-                });
 
-                _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
+                    HasNetwork = true;
+                    _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
+                });
             }
             catch (OperationCanceledException)
             {
