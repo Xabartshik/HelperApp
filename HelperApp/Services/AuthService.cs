@@ -1,74 +1,78 @@
 using HelperApp.Models.Auth;
 using HelperApp.Models.User;
+using Microsoft.Extensions.Logging;
 using System.IdentityModel.Tokens.Jwt;
 using static HelperApp.Services.ApiClient;
 
 namespace HelperApp.Services;
 
-public class AuthService : IAuthService
+public sealed class AuthService : IAuthService
 {
     private readonly IApiClient _apiClient;
     private readonly ILogger<AuthService> _logger;
+
     private CurrentUser? _currentUser;
 
     private const string TokenKey = "access_token";
+
     private const string EmployeeIdKey = "last_employee_id";
     private const string RoleKey = "last_role";
+    private const string FirstNameKey = "first_name";
+    private const string LastNameKey = "last_name";
+    private const string UserIdKey = "user_id";
 
     public AuthService(IApiClient apiClient, ILogger<AuthService> logger)
     {
-        _apiClient = apiClient;
-        _logger = logger;
+        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+
+    public CurrentUser? GetCurrentUser() => _currentUser;
 
     public async Task<CurrentUser?> LoginAsync(string employeeId, string password)
     {
         try
         {
-            var loginRequest = new LoginRequest 
-            { 
-                Username = employeeId, 
-                Password = password 
+            var loginRequest = new LoginRequest
+            {
+                Username = employeeId,
+                Password = password
             };
 
             var response = await _apiClient.PostAsync<LoginResponse>("mobileappuser/login", loginRequest);
-
             if (response?.AccessToken == null)
             {
                 _logger.LogWarning("Пустой токен от сервера");
                 return null;
             }
 
-            // Декодируем токен чтобы получить ExpiresAt
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(response.AccessToken);
-            var expiresAt = jwtToken.ValidTo;
+            var jwtToken = new JwtSecurityTokenHandler().ReadJwtToken(response.AccessToken);
 
             _currentUser = new CurrentUser
             {
                 Id = response.User.Id,
                 EmployeeId = response.User.EmployeeId,
-                FirstName = response.User.FirstName,    
-                LastName = response.User.LastName,        
+                FirstName = response.User.FirstName,
+                LastName = response.User.LastName,
                 Role = response.User.Role,
                 AccessToken = response.AccessToken,
-                TokenExpiresAt = expiresAt
+                TokenExpiresAt = jwtToken.ValidTo
             };
 
-            // Сохраняем токен в SecureStorage
             await SecureStorage.SetAsync(TokenKey, response.AccessToken);
 
-            // Сохраняем метаданные пользователя в Preferences
+            Preferences.Set(UserIdKey, response.User.Id);
             Preferences.Set(EmployeeIdKey, response.User.EmployeeId);
             Preferences.Set(RoleKey, response.User.Role);
-            Preferences.Set("FirstName", response.User.FirstName); 
-            Preferences.Set("LastName", response.User.LastName);   
+            Preferences.Set(FirstNameKey, response.User.FirstName ?? string.Empty);
+            Preferences.Set(LastNameKey, response.User.LastName ?? string.Empty);
 
-            // Устанавливаем токен в ApiClient
             _apiClient.SetAuthorizationToken(response.AccessToken);
 
-            _logger.LogInformation("Успешный логин: EmployeeId={EmployeeId}, Role={Role}", 
-                response.User.EmployeeId, response.User.Role);
+            _logger.LogInformation(
+                "Успешный логин: EmployeeId={EmployeeId}, Role={Role}",
+                response.User.EmployeeId,
+                response.User.Role);
 
             return _currentUser;
         }
@@ -93,21 +97,17 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Пытаемся получить токен из SecureStorage
             var token = await SecureStorage.GetAsync(TokenKey);
-
             if (string.IsNullOrEmpty(token))
             {
                 _logger.LogInformation("Токен не найден в SecureStorage");
                 return null;
             }
 
-            // Проверяем, не истёк ли токен
+            JwtSecurityToken jwtToken;
             try
             {
-                var handler = new JwtSecurityTokenHandler();
-                var jwtToken = handler.ReadJwtToken(token);
-
+                jwtToken = new JwtSecurityTokenHandler().ReadJwtToken(token);
                 if (jwtToken.ValidTo < DateTime.UtcNow)
                 {
                     _logger.LogInformation("Токен истёк");
@@ -122,9 +122,13 @@ public class AuthService : IAuthService
                 return null;
             }
 
-            // Получаем сохранённые метаданные
             var employeeId = Preferences.Get(EmployeeIdKey, 0);
-            var role = Preferences.Get(RoleKey, "");
+            var role = Preferences.Get(RoleKey, string.Empty);
+
+            // ВАЖНО: восстанавливаем ФИО
+            var firstName = Preferences.Get(FirstNameKey, string.Empty);
+            var lastName = Preferences.Get(LastNameKey, string.Empty);
+            var userId = Preferences.Get(UserIdKey, 0);
 
             if (employeeId == 0 || string.IsNullOrEmpty(role))
             {
@@ -135,17 +139,18 @@ public class AuthService : IAuthService
 
             _currentUser = new CurrentUser
             {
+                Id = userId,
                 EmployeeId = employeeId,
+                FirstName = firstName,
+                LastName = lastName,
                 Role = role,
                 AccessToken = token,
-                TokenExpiresAt = new JwtSecurityTokenHandler().ReadJwtToken(token).ValidTo
+                TokenExpiresAt = jwtToken.ValidTo
             };
 
-            // Устанавливаем токен в ApiClient
             _apiClient.SetAuthorizationToken(token);
 
             _logger.LogInformation("Успешный автологин: EmployeeId={EmployeeId}", employeeId);
-
             return _currentUser;
         }
         catch (Exception ex)
@@ -159,28 +164,23 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Очищаем токен
             SecureStorage.Remove(TokenKey);
 
-            // Очищаем метаданные
+            Preferences.Remove(UserIdKey);
             Preferences.Remove(EmployeeIdKey);
             Preferences.Remove(RoleKey);
+            Preferences.Remove(FirstNameKey);
+            Preferences.Remove(LastNameKey);
 
-            // Удаляем токен из ApiClient
             _apiClient.SetAuthorizationToken(null);
-
             _currentUser = null;
 
             _logger.LogInformation("Успешный выход из приложения");
+            await Task.CompletedTask;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при выходе из приложения");
         }
-    }
-
-    public CurrentUser? GetCurrentUser()
-    {
-        return _currentUser;
     }
 }

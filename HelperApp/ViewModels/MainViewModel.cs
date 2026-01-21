@@ -8,8 +8,8 @@ using static HelperApp.Services.ApiClient;
 namespace HelperApp.ViewModels;
 
 /// <summary>
-/// ViewModel для главной страницы (списка задач)
-/// Управляет загрузкой и отображением задач, синхронизацией с сервером
+/// ViewModel для главной страницы (списка задач).
+/// Управляет загрузкой и отображением задач, синхронизацией с сервером.
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
@@ -17,6 +17,9 @@ public partial class MainViewModel : ObservableObject
     private readonly ITaskService _taskService;
     private readonly ILogger<MainViewModel> _logger;
     private readonly IApiClient _apiClient;
+
+    private CancellationTokenSource? _cts;
+    private Task? _syncTask;
 
     [ObservableProperty]
     private string firstName = string.Empty;
@@ -43,18 +46,16 @@ public partial class MainViewModel : ObservableObject
     private bool hasNetwork = true;
 
     /// <summary>
-    /// Сырые задачи (для выполнения и детальной информации)
+    /// Сырые задачи (для выполнения и детальной информации).
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<TaskItemBase> rawTasks = new();
 
     /// <summary>
-    /// Карточки задач для отображения (преобразованные из rawTasks)
+    /// Карточки задач для отображения (преобразованные из RawTasks).
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<TaskCardVm> taskCards = new();
-
-    private CancellationTokenSource? _cts;
 
     public MainViewModel(
         IAuthService authService,
@@ -86,12 +87,36 @@ public partial class MainViewModel : ObservableObject
 
         _logger.LogInformation("MainViewModel инициализирована для EmployeeId={EmployeeId}", EmployeeId);
 
-        // Загружаем задачи
         await RefreshTasks();
 
-        // Запускаем периодическую синхронизацию
+        // Запуск синхронизации только один раз
+        StartPeriodicSyncIfNeeded();
+    }
+
+    public void StopPeriodicSync()
+    {
+        try
+        {
+            if (_cts is null)
+                return;
+
+            if (!_cts.IsCancellationRequested)
+                _cts.Cancel();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при остановке синхронизации");
+        }
+    }
+
+    private void StartPeriodicSyncIfNeeded()
+    {
+        if (_syncTask is not null && !_syncTask.IsCompleted)
+            return;
+
+        _cts?.Cancel();
         _cts = new CancellationTokenSource();
-        _ = StartPeriodicTaskSync(_cts.Token);
+        _syncTask = StartPeriodicTaskSync(_cts.Token);
     }
 
     [RelayCommand]
@@ -111,24 +136,21 @@ public partial class MainViewModel : ObservableObject
 
                 foreach (var task in tasks)
                 {
-                    // Сохраняем сырую задачу для выполнения
                     RawTasks.Add(task);
 
-                    // Маппим в карточку для отображения
                     var card = TaskCardMapper.ToCard(task);
                     TaskCards.Add(card);
                 }
-
-                _logger.LogInformation("Loaded {Count} task cards for display", TaskCards.Count);
             });
 
             HasNetwork = true;
+            _logger.LogInformation("Loaded {Count} task cards for display", TaskCards.Count);
         }
         catch (NoNetworkException)
         {
             ErrorMessage = "Нет подключения к сети";
             HasNetwork = false;
-            _logger.LogError("Нет подключения при загрузке задач");
+            _logger.LogWarning("Нет подключения при загрузке задач");
         }
         catch (UnauthorizedException)
         {
@@ -148,9 +170,11 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task Logout()
     {
-        _cts?.Cancel();
+        StopPeriodicSync();
+
         await _authService.LogoutAsync();
         _logger.LogInformation("Выход из приложения");
+
         await Shell.Current.GoToAsync("///login");
     }
 
@@ -174,13 +198,14 @@ public partial class MainViewModel : ObservableObject
                     foreach (var task in tasks)
                     {
                         RawTasks.Add(task);
+
                         var card = TaskCardMapper.ToCard(task);
                         TaskCards.Add(card);
                     }
-
-                    HasNetwork = true;
-                    _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
                 });
+
+                HasNetwork = true;
+                _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
             }
             catch (OperationCanceledException)
             {

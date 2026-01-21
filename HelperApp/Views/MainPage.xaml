@@ -8,7 +8,7 @@
     <VerticalStackLayout Padding="0" Spacing="0">
 
         <!-- Header -->
-        <Grid 
+        <Grid
             Padding="20,15"
             ColumnDefinitions="*,Auto"
             BackgroundColor="#2a2a3e"
@@ -16,12 +16,12 @@
 
             <!-- User Info -->
             <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
-                <Label Text="{Binding FullName}" FontSize="18" FontAttributes="Bold"/>
-                <Label Text="{Binding Role, StringFormat='Должность: {0}'}" FontSize="14"/>
+                <Label Text="{Binding FullName}" FontSize="18" FontAttributes="Bold" />
+                <Label Text="{Binding Role, StringFormat='Должность: {0}'}" FontSize="14" />
             </VerticalStackLayout>
 
             <!-- Logout Button -->
-            <Button 
+            <Button
                 Grid.Column="1"
                 Text="Выход"
                 Command="{Binding LogoutCommand}"
@@ -35,7 +35,7 @@
         </Grid>
 
         <!-- No Network Alert -->
-        <Label 
+        <Label
             Text="⚠️ Нет подключения к сети"
             TextColor="#ffffff"
             BackgroundColor="#ff6b6b"
@@ -45,20 +45,20 @@
             IsVisible="{Binding HasNetwork, Converter={StaticResource InvertedBoolConverter}}" />
 
         <!-- Refresh Button & Status -->
-        <Grid 
+        <Grid
             Padding="20,10"
             ColumnDefinitions="*,Auto"
             BackgroundColor="#2a2a3e"
             ColumnSpacing="10">
 
-            <Label 
+            <Label
                 Text="Мои задачи"
                 FontSize="16"
                 FontAttributes="Bold"
                 TextColor="#e0b0ff"
                 VerticalOptions="Center" />
 
-            <Button 
+            <Button
                 Grid.Column="1"
                 Text="Обновить"
                 Command="{Binding RefreshTasksCommand}"
@@ -72,21 +72,21 @@
         </Grid>
 
         <!-- Loading Indicator -->
-        <ActivityIndicator 
+        <ActivityIndicator
             IsRunning="{Binding IsBusy}"
             IsVisible="{Binding IsBusy}"
             Color="#7c3aed"
             Margin="0,20,0,0" />
 
         <!-- Tasks List (Карточки) -->
-        <CollectionView 
+        <CollectionView
             ItemsSource="{Binding TaskCards}"
             SelectionMode="Single"
             Margin="0,0,0,0">
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border 
+                    <Border
                         Padding="15"
                         Margin="10,8,10,0"
                         StrokeThickness="1"
@@ -97,7 +97,7 @@
                         <VerticalStackLayout Spacing="10">
 
                             <!-- Title -->
-                            <Label 
+                            <Label
                                 Text="{Binding Title}"
                                 FontSize="16"
                                 FontAttributes="Bold"
@@ -105,7 +105,7 @@
                                 LineBreakMode="WordWrap" />
 
                             <!-- Subtitle -->
-                            <Label 
+                            <Label
                                 Text="{Binding Subtitle}"
                                 FontSize="12"
                                 TextColor="#b0b0b0"
@@ -115,13 +115,13 @@
                             <!-- Status / Metric / Date -->
                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
 
-                                <Label 
+                                <Label
                                     Text="{Binding StatusText, StringFormat='Статус: {0}'}"
                                     FontSize="12"
                                     TextColor="#7c3aed"
                                     VerticalOptions="Center" />
 
-                                <Label 
+                                <Label
                                     Grid.Column="1"
                                     Text="{Binding PrimaryMetric}"
                                     FontSize="12"
@@ -130,7 +130,7 @@
                                     VerticalOptions="Center"
                                     IsVisible="{Binding PrimaryMetric, Converter={StaticResource NotNullOrEmptyConverter}}" />
 
-                                <Label 
+                                <Label
                                     Grid.Column="2"
                                     Text="{Binding CreatedAt, StringFormat='d'}"
                                     FontSize="11"
@@ -140,7 +140,7 @@
                             </Grid>
 
                             <!-- Badges -->
-                            <FlexLayout 
+                            <FlexLayout
                                 BindableLayout.ItemsSource="{Binding Badges}"
                                 Direction="Row"
                                 Wrap="Wrap"
@@ -150,7 +150,7 @@
 
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate>
-                                        <Frame 
+                                        <Frame
                                             Padding="8,4"
                                             Margin="0,0,6,6"
                                             CornerRadius="10"
@@ -158,13 +158,13 @@
                                             HasShadow="False"
                                             BackgroundColor="#1a2a3e">
                                             <HorizontalStackLayout Spacing="4" Padding="0" Margin="0">
-                                                <Label 
+                                                <Label
                                                     Text="{Binding Key, StringFormat='{0}:'}"
                                                     FontSize="10"
                                                     TextColor="#b0b0b0"
                                                     Margin="0"
                                                     VerticalOptions="Center" />
-                                                <Label 
+                                                <Label
                                                     Text="{Binding Value}"
                                                     FontSize="10"
                                                     TextColor="#7c3aed"
@@ -186,19 +186,26 @@
 
         </CollectionView>
 
-        <!-- Empty State -->
-        <StackLayout 
+        <!-- Empty State (без конвертера, по TaskCards.Count) -->
+        <StackLayout
             Padding="20"
             VerticalOptions="CenterAndExpand"
             HorizontalOptions="CenterAndExpand"
-            IsVisible="{Binding TaskCards, Converter={StaticResource EmptyCollectionToBoolConverter}}">
+            IsVisible="False">
 
-            <Label 
+            <StackLayout.Triggers>
+                <DataTrigger TargetType="StackLayout"
+                             Binding="{Binding TaskCards.Count}"
+                             Value="0">
+                    <Setter Property="IsVisible" Value="True" />
+                </DataTrigger>
+            </StackLayout.Triggers>
+
+            <Label
                 Text="Задач не найдено"
                 FontSize="16"
                 TextColor="#b0b0b0"
                 HorizontalTextAlignment="Center" />
-
         </StackLayout>
 
     </VerticalStackLayout>

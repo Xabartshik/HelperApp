@@ -9,6 +9,7 @@ public partial class MainPage : ContentPage
     public MainPage(MainViewModel viewModel)
     {
         InitializeComponent();
+
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         BindingContext = _viewModel;
     }
@@ -22,6 +23,8 @@ public partial class MainPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        _viewModel?.LogoutCommand?.Execute(null);
+        // Важно: НЕ делать logout здесь.
+        // При необходимости можно останавливать только фоновые таймеры/синхронизацию.
+        _viewModel.StopPeriodicSync();
     }
 }
