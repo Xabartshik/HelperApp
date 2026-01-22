@@ -8,8 +8,8 @@ using static HelperApp.Services.ApiClient;
 namespace HelperApp.ViewModels;
 
 /// <summary>
-/// ViewModel для главной страницы (списка задач).
-/// Управляет загрузкой и отображением задач, синхронизацией с сервером.
+/// ViewModel для главной страницы (списка задач)
+/// Управляет загрузкой и отображением задач, синхронизацией с сервером, навигацией
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
@@ -17,9 +17,6 @@ public partial class MainViewModel : ObservableObject
     private readonly ITaskService _taskService;
     private readonly ILogger<MainViewModel> _logger;
     private readonly IApiClient _apiClient;
-
-    private CancellationTokenSource? _cts;
-    private Task? _syncTask;
 
     [ObservableProperty]
     private string firstName = string.Empty;
@@ -46,16 +43,30 @@ public partial class MainViewModel : ObservableObject
     private bool hasNetwork = true;
 
     /// <summary>
-    /// Сырые задачи (для выполнения и детальной информации).
+    /// Сырые задачи (для выполнения и детальной информации)
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<TaskItemBase> rawTasks = new();
 
     /// <summary>
-    /// Карточки задач для отображения (преобразованные из RawTasks).
+    /// Карточки задач для отображения (преобразованные из rawTasks)
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<TaskCardVm> taskCards = new();
+
+    /// <summary>
+    /// Выбранная карточка задачи (для навигации по клику)
+    /// </summary>
+    [ObservableProperty]
+    private TaskCardVm? selectedTaskCard;
+
+    partial void OnSelectedTaskCardChanged(TaskCardVm? value)
+    {
+        if (value is null) return;
+        OpenTaskCommand.Execute(value);
+    }
+
+    private CancellationTokenSource? _cts;
 
     public MainViewModel(
         IAuthService authService,
@@ -87,36 +98,12 @@ public partial class MainViewModel : ObservableObject
 
         _logger.LogInformation("MainViewModel инициализирована для EmployeeId={EmployeeId}", EmployeeId);
 
+        // Загружаем задачи
         await RefreshTasks();
 
-        // Запуск синхронизации только один раз
-        StartPeriodicSyncIfNeeded();
-    }
-
-    public void StopPeriodicSync()
-    {
-        try
-        {
-            if (_cts is null)
-                return;
-
-            if (!_cts.IsCancellationRequested)
-                _cts.Cancel();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Ошибка при остановке синхронизации");
-        }
-    }
-
-    private void StartPeriodicSyncIfNeeded()
-    {
-        if (_syncTask is not null && !_syncTask.IsCompleted)
-            return;
-
-        _cts?.Cancel();
+        // Запускаем периодическую синхронизацию
         _cts = new CancellationTokenSource();
-        _syncTask = StartPeriodicTaskSync(_cts.Token);
+        _ = StartPeriodicTaskSync(_cts.Token);
     }
 
     [RelayCommand]
@@ -124,11 +111,9 @@ public partial class MainViewModel : ObservableObject
     {
         IsBusy = true;
         ErrorMessage = string.Empty;
-
         try
         {
             var tasks = await _taskService.GetTasksForCurrentUserAsync(EmployeeId);
-
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 RawTasks.Clear();
@@ -136,21 +121,24 @@ public partial class MainViewModel : ObservableObject
 
                 foreach (var task in tasks)
                 {
+                    // Сохраняем сырую задачу для выполнения
                     RawTasks.Add(task);
 
+                    // Маппим в карточку для отображения
                     var card = TaskCardMapper.ToCard(task);
                     TaskCards.Add(card);
                 }
+
+                _logger.LogInformation("Loaded {Count} task cards for display", TaskCards.Count);
             });
 
             HasNetwork = true;
-            _logger.LogInformation("Loaded {Count} task cards for display", TaskCards.Count);
         }
         catch (NoNetworkException)
         {
             ErrorMessage = "Нет подключения к сети";
             HasNetwork = false;
-            _logger.LogWarning("Нет подключения при загрузке задач");
+            _logger.LogError("Нет подключения при загрузке задач");
         }
         catch (UnauthorizedException)
         {
@@ -168,28 +156,55 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task OpenTask(TaskCardVm task)
+    {
+        if (task == null) return;
+
+        try
+        {
+            var currentUser = _authService.GetCurrentUser();
+            if (currentUser == null)
+            {
+                _logger.LogWarning("CurrentUser не найден, перенаправление на логин");
+                await Shell.Current.GoToAsync("///login");
+                return;
+            }
+            // Получи employeeId (текущий пользователь)
+            var employeeId = currentUser?.Id ?? 0;
+            
+            // ✅ Передай параметры через query string
+            var navigationParameters = new Dictionary<string, object>
+            {
+                { "assignmentId", task.NavigationId },
+                { "employeeId", employeeId }
+            };
+            
+            // Навигация с параметрами
+            await Shell.Current.GoToAsync($"inventory-details?assignmentId={task.NavigationId}&employeeId={employeeId}");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Ошибка навигации: {ex.Message}";
+        }
+    }
+    [RelayCommand]
     public async Task Logout()
     {
-        StopPeriodicSync();
-
+        _cts?.Cancel();
         await _authService.LogoutAsync();
         _logger.LogInformation("Выход из приложения");
-
         await Shell.Current.GoToAsync("///login");
     }
 
     private async Task StartPeriodicTaskSync(CancellationToken cancellationToken)
     {
         const int intervalSeconds = 30;
-
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), cancellationToken);
-
                 var tasks = await _taskService.GetTasksForCurrentUserAsync(EmployeeId);
-
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     RawTasks.Clear();
@@ -198,14 +213,13 @@ public partial class MainViewModel : ObservableObject
                     foreach (var task in tasks)
                     {
                         RawTasks.Add(task);
-
                         var card = TaskCardMapper.ToCard(task);
                         TaskCards.Add(card);
                     }
-                });
 
-                HasNetwork = true;
-                _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
+                    HasNetwork = true;
+                    _logger.LogDebug("Задачи синхронизированы в {Time}", DateTime.Now);
+                });
             }
             catch (OperationCanceledException)
             {
@@ -226,6 +240,22 @@ public partial class MainViewModel : ObservableObject
             {
                 _logger.LogError(ex, "Ошибка при синхронизации задач");
             }
+        }
+    }
+
+    public void StopPeriodicSync()
+    {
+        try
+        {
+            if (_cts is null)
+                return;
+
+            if (!_cts.IsCancellationRequested)
+                _cts.Cancel();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при остановке синхронизации");
         }
     }
 }

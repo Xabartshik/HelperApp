@@ -1,114 +1,147 @@
-﻿using HelperApp.Models.Tasks;
+﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace HelperApp.Models.Inventory;
-
-/// <summary>
-/// Статус назначения инвентаризации
-/// Соответствует inventoryassignments.status
-/// </summary>
-public enum InventoryAssignmentStatus
+namespace HelperApp.Models.Inventory
 {
-    Assigned = 0,
-    InProgress = 1,
-    Completed = 2,
-    Cancelled = 3
-}
+    /// <summary>
+    /// Человекочитаемый номер/адрес складской позиции.
+    /// </summary>
+    public class PositionCodeDto
+    {
+        /// <summary>
+        /// Идентификатор филиала.
+        /// </summary>
+        [JsonPropertyName("branchId")]
+        public int BranchId { get; set; }
 
-/// <summary>
-/// DTO для строки назначения инвентаризации (товар для учёта)
-/// Соответствует серверному InventoryAssignmentLineDto
-/// </summary>
-public sealed class InventoryAssignmentLineDto
-{
-    [JsonPropertyName("id")]
-    public int Id { get; set; }
+        /// <summary>
+        /// Код зоны хранения.
+        /// </summary>
+        [JsonPropertyName("zoneCode")]
+        public string ZoneCode { get; set; }
 
-    [JsonPropertyName("inventoryAssignmentId")]
-    public int InventoryAssignmentId { get; set; }
+        /// <summary>
+        /// Тип хранилища первого уровня (стеллаж, пол, ячейка и т.п.).
+        /// </summary>
+        [JsonPropertyName("firstLevelStorageType")]
+        public string FirstLevelStorageType { get; set; }
 
-    [JsonPropertyName("itemPositionId")]
-    public int ItemPositionId { get; set; }
+        /// <summary>
+        /// Номер хранилища первого уровня.
+        /// </summary>
+        [JsonPropertyName("fLSNumber")]
+        public string FLSNumber { get; set; }
 
-    [JsonPropertyName("expectedQuantity")]
-    public int ExpectedQuantity { get; set; }
+        /// <summary>
+        /// Номер хранилища второго уровня (опционально).
+        /// </summary>
+        [JsonPropertyName("secondLevelStorage")]
+        public string? SecondLevelStorage { get; set; }
 
-    [JsonPropertyName("actualQuantity")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? ActualQuantity { get; set; }
+        /// <summary>
+        /// Номер хранилища третьего уровня (опционально).
+        /// </summary>
+        [JsonPropertyName("thirdLevelStorage")]
+        public string? ThirdLevelStorage { get; set; }
+    }
 
-    [JsonPropertyName("variance")]
-    public int Variance => ActualQuantity.HasValue ? ActualQuantity.Value - ExpectedQuantity : 0;
+    /// <summary>
+    /// Строка инвентаризации с информацией о товаре
+    /// </summary>
+    public class InventoryAssignmentLineWithItemDto
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
 
-    [JsonPropertyName("zoneCode")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ZoneCode { get; set; }
+        [JsonPropertyName("itemPositionId")]
+        public int ItemPositionId { get; set; }
 
-    [JsonPropertyName("firstLevelStorageType")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? FirstLevelStorageType { get; set; }
+        [JsonPropertyName("positionId")]
+        public int PositionId { get; set; }
 
-    [JsonPropertyName("flsNumber")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? FlsNumber { get; set; }
-}
+        [JsonPropertyName("expectedQuantity")]
+        public int ExpectedQuantity { get; set; }
 
-/// <summary>
-/// DTO для детальной информации о назначении инвентаризации
-/// Соответствует серверному InventoryAssignmentDetailedDto
-/// </summary>
-public sealed class InventoryAssignmentDetailedDto
-{
-    [JsonPropertyName("id")]
-    public int Id { get; set; }
+        [JsonPropertyName("actualQuantity")]
+        public int? ActualQuantity { get; set; }
 
-    [JsonPropertyName("taskId")]
-    public int TaskId { get; set; }
+        [JsonPropertyName("itemId")]
+        public int ItemId { get; set; }
 
-    [JsonPropertyName("assignedToUserId")]
-    public int AssignedToUserId { get; set; }
+        [JsonPropertyName("itemName")]
+        public string ItemName { get; set; }
 
-    [JsonPropertyName("userName")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? UserName { get; set; }
+        [JsonPropertyName("displayName")]
+        public string DisplayName { get; set; }
 
-    [JsonPropertyName("branchId")]
-    public int BranchId { get; set; }
+        [JsonPropertyName("positionCode")]
+        public PositionCodeDto PositionCode { get; set; }
 
-    [JsonPropertyName("zoneCode")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ZoneCode { get; set; }
+    }
 
-    [JsonPropertyName("status")]
-    public InventoryAssignmentStatus Status { get; set; }
+    /// <summary>
+    /// Назначение инвентаризации с информацией о товарах
+    /// </summary>
+    public class InventoryAssignmentDetailedWithItemDto
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
 
-    [JsonPropertyName("assignedAt")]
-    public DateTime AssignedAt { get; set; }
+        [JsonPropertyName("taskNumber")]
+        public string TaskNumber { get; set; }
 
-    [JsonPropertyName("completedAt")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public DateTime? CompletedAt { get; set; }
+        [JsonPropertyName("description")]
+        public string Description { get; set; }
 
-    [JsonPropertyName("statistics")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public InventoryStatisticsDto? Statistics { get; set; }
+        [JsonPropertyName("createdDate")]
+        public string CreatedDate { get; set; }
 
-    [JsonPropertyName("lines")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<InventoryAssignmentLineDto> Lines { get; set; } = new();
-}
+        [JsonPropertyName("lines")]
+        public List<InventoryAssignmentLineWithItemDto> Lines { get; set; } = new();
+    }
 
-/// <summary>
-/// DTO для статистики инвентаризации
-/// </summary>
-public sealed class InventoryStatisticsDto
-{
-    [JsonPropertyName("totalPositions")]
-    public int TotalPositions { get; set; }
 
-    [JsonPropertyName("completedPositions")]
-    public int CompletedPositions { get; set; }
+    [System.Obsolete("Используйте InventoryAssignmentDetailedWithItemDto вместо этого")]
+    public class InventoryAssignmentLineDto
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
 
-    [JsonPropertyName("variances")]
-    public int Variances { get; set; }
+        [JsonPropertyName("itemPositionId")]
+        public int ItemPositionId { get; set; }
+
+        [JsonPropertyName("expectedQuantity")]
+        public int ExpectedQuantity { get; set; }
+
+        [JsonPropertyName("actualQuantity")]
+        public int? ActualQuantity { get; set; }
+
+        [JsonPropertyName("zoneCode")]
+        public string ZoneCode { get; set; }
+
+        [JsonPropertyName("firstLevelStorageType")]
+        public string FirstLevelStorageType { get; set; }
+
+        [JsonPropertyName("flsNumber")]
+        public int FlsNumber { get; set; }
+    }
+
+    [System.Obsolete("Используйте InventoryAssignmentDetailedWithItemDto вместо этого")]
+    public class InventoryAssignmentDetailedDto
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("taskNumber")]
+        public string TaskNumber { get; set; }
+
+        [JsonPropertyName("description")]
+        public string Description { get; set; }
+
+        [JsonPropertyName("createdDate")]
+        public string CreatedDate { get; set; }
+
+        [JsonPropertyName("lines")]
+        public List<InventoryAssignmentLineDto> Lines { get; set; } = new();
+    }
 }

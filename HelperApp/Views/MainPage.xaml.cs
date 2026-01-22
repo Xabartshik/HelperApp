@@ -23,8 +23,6 @@ public partial class MainPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        // Важно: НЕ делать logout здесь.
-        // При необходимости можно останавливать только фоновые таймеры/синхронизацию.
         _viewModel.StopPeriodicSync();
     }
 }

@@ -13,6 +13,7 @@ public class ApiClient : IApiClient
 
     private const string HasNewTasksForWorkerRouteTemplate = "Inventory/worker/{0}/check-new";
     private const string GetNewAssignmentsForWorkerRouteTemplate = "Inventory/worker/{0}/new-tasks";
+    private const string GetInventoryTaskDetailsRouteTemplate = "Inventory/worker/{0}/tasks/{1}/details";
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<ApiClient> _logger;
@@ -165,12 +166,21 @@ public class ApiClient : IApiClient
         return result ?? false;
     }
 
-    public async Task<IReadOnlyList<InventoryAssignmentDetailedDto>?> GetNewAssignmentsForWorkerAsync(
+    public async Task<IReadOnlyList<InventoryAssignmentDetailedWithItemDto>?> GetNewAssignmentsForWorkerAsync(
         int workerId,
         CancellationToken cancellationToken = default)
     {
         var endpoint = string.Format(GetNewAssignmentsForWorkerRouteTemplate, workerId);
-        return await GetAsync<List<InventoryAssignmentDetailedDto>>(endpoint, cancellationToken);
+        return await GetAsync<List<InventoryAssignmentDetailedWithItemDto>>(endpoint, cancellationToken);
+    }
+
+    public async Task<InventoryAssignmentDetailedWithItemDto?> GetInventoryTaskDetailsAsync(
+        int workerId,
+        int inventoryTaskId,
+        CancellationToken cancellationToken = default)
+    {
+        var endpoint = string.Format(GetInventoryTaskDetailsRouteTemplate, workerId, inventoryTaskId);
+        return await GetAsync<InventoryAssignmentDetailedWithItemDto>(endpoint, cancellationToken);
     }
 
     // ===== Исключения =====

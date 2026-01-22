@@ -9,9 +9,14 @@ namespace HelperApp.Models.Tasks;
 public sealed class TaskCardVm
 {
     /// <summary>
-    /// ID задачи (для идентификации при клике)
+    /// Тип задачи (для маршрутизации: "Inventory" или "Task")
     /// </summary>
-    public int Id { get; set; }
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID для навигации (для Inventory это AssignmentId, иначе TaskId)
+    /// </summary>
+    public int NavigationId { get; set; }
 
     /// <summary>
     /// Название задачи
@@ -49,7 +54,6 @@ public sealed class TaskCardVm
     public TaskItemBase? RawTask { get; set; }
 }
 
-
 /// <summary>
 /// Маппер для преобразования TaskItemBase в TaskCardVm
 /// </summary>
@@ -75,9 +79,10 @@ public static class TaskCardMapper
     /// </summary>
     private static TaskCardVm MapInventoryTaskToCard(InventoryTaskItem task)
     {
-        var completedCount = task.Lines.Count(l => l.ActualQuantity.HasValue);
-        var totalCount = task.Lines.Count;
-        var varianceCount = task.Lines.Count(l =>
+        var lines = task.Lines ?? new List<InventoryLineItem>();
+        var completedCount = lines.Count(l => l.ActualQuantity.HasValue);
+        var totalCount = lines.Count;
+        var varianceCount = lines.Count(l =>
             l.ActualQuantity.HasValue &&
             l.ActualQuantity != l.ExpectedQuantity);
 
@@ -94,13 +99,14 @@ public static class TaskCardMapper
 
         return new TaskCardVm
         {
-            Id = task.TaskId,
+            Kind = TaskType.Inventory.ToString(),
+            NavigationId = task.AssignmentId,
             Title = task.Title,
             Subtitle = task.Description,
             StatusText = task.Status.ToString(),
             PrimaryMetric = primaryMetric,
             CreatedAt = task.CreatedAt,
-            Badges = badges.ToList(),
+            Badges = badges.Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value)).ToList(),
             RawTask = task
         };
     }
@@ -112,7 +118,8 @@ public static class TaskCardMapper
     {
         return new TaskCardVm
         {
-            Id = task.TaskId,
+            Kind = task.Type.ToString(),
+            NavigationId = task.TaskId,
             Title = task.Title,
             Subtitle = task.Description,
             StatusText = task.Status.ToString(),
