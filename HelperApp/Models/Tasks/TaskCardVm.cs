@@ -1,4 +1,6 @@
-﻿using HelperApp.Services;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace HelperApp.Models.Tasks;
 
@@ -52,85 +54,90 @@ public sealed class TaskCardVm
     /// Ссылка на сырую задачу (для получения полной информации при выполнении)
     /// </summary>
     public TaskItemBase? RawTask { get; set; }
-}
-
-/// <summary>
-/// Маппер для преобразования TaskItemBase в TaskCardVm
-/// </summary>
-public static class TaskCardMapper
-{
-    /// <summary>
-    /// Преобразование любой задачи (TaskItemBase) в карточку для отображения (TaskCardVm)
-    /// </summary>
-    public static TaskCardVm ToCard(TaskItemBase task)
-    {
-        if (task == null)
-            throw new ArgumentNullException(nameof(task));
-
-        return task switch
-        {
-            InventoryTaskItem inventory => MapInventoryTaskToCard(inventory),
-            _ => MapGenericTaskToCard(task)
-        };
-    }
 
     /// <summary>
-    /// Маппер для InventoryTaskItem → TaskCardVm
+    /// Маппер для преобразования TaskItemBase в TaskCardVm
     /// </summary>
-    private static TaskCardVm MapInventoryTaskToCard(InventoryTaskItem task)
+    public static class TaskCardMapper
     {
-        var lines = task.Lines ?? new List<InventoryLineItem>();
-        var completedCount = lines.Count(l => l.ActualQuantity.HasValue);
-        var totalCount = lines.Count;
-        var varianceCount = lines.Count(l =>
-            l.ActualQuantity.HasValue &&
-            l.ActualQuantity != l.ExpectedQuantity);
-
-        var primaryMetric = totalCount > 0
-            ? $"{completedCount}/{totalCount} позиций"
-            : "Нет позиций";
-
-        var badges = new Dictionary<string, string>
+        /// <summary>
+        /// Преобразование любой задачи (TaskItemBase) в карточку для отображения (TaskCardVm)
+        /// </summary>
+        public static TaskCardVm ToCard(TaskItemBase task)
         {
-            { "Зона", task.ZoneCode ?? "—" },
-            { "Статус назначения", task.AssignmentStatus.ToString() },
-            { "Расхождений", varianceCount.ToString() }
-        };
+            if (task == null)
+                throw new ArgumentNullException(nameof(task));
 
-        return new TaskCardVm
-        {
-            Kind = TaskType.Inventory.ToString(),
-            NavigationId = task.AssignmentId,
-            Title = task.Title,
-            Subtitle = task.Description,
-            StatusText = task.Status.ToString(),
-            PrimaryMetric = primaryMetric,
-            CreatedAt = task.CreatedAt,
-            Badges = badges.Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value)).ToList(),
-            RawTask = task
-        };
-    }
-
-    /// <summary>
-    /// Маппер для общего случая → TaskCardVm
-    /// </summary>
-    private static TaskCardVm MapGenericTaskToCard(TaskItemBase task)
-    {
-        return new TaskCardVm
-        {
-            Kind = task.Type.ToString(),
-            NavigationId = task.TaskId,
-            Title = task.Title,
-            Subtitle = task.Description,
-            StatusText = task.Status.ToString(),
-            PrimaryMetric = $"Приоритет: {task.Priority}",
-            CreatedAt = task.CreatedAt,
-            Badges = new List<KeyValuePair<string, string>>
+            return task switch
             {
-                new("Тип", task.Type.ToString()),
-                new("Статус", task.Status.ToString())
-            },
-            RawTask = task
-        };
+                InventoryTaskItem inventory => MapInventoryTaskToCard(inventory),
+                _ => MapGenericTaskToCard(task)
+            };
+        }
+
+        public static TaskCardVm MapInventoryTaskToCard(InventoryTaskItem task)
+        {
+            var lines = task.Lines ?? new List<InventoryLineItem>();
+
+            var completedCount = lines.Count(l => l.ActualQuantity.HasValue);
+            var totalCount = lines.Count;
+
+            var varianceCount = lines.Count(l =>
+                l.ActualQuantity.HasValue &&
+                l.ActualQuantity != l.ExpectedQuantity);
+
+            var primaryMetric = totalCount > 0
+                ? $"{completedCount}/{totalCount} позиций"
+                : "Нет позиций";
+
+            // Вместо ZoneCode используем PositionCode
+            var firstPosition = lines.FirstOrDefault(l => l.PositionCode != null)?.PositionCode;
+            var positionText = firstPosition?.ShortDescription
+                               ?? firstPosition?.FullDescription
+                               ?? "—";
+
+            var badges = new Dictionary<string, string>
+            {
+                { "Позиция", positionText },
+                { "Статус задачи", task.Status.ToString() },
+                { "Расхождений", varianceCount.ToString() }
+            };
+
+            return new TaskCardVm
+            {
+                Kind = TaskType.Inventory.ToString(),
+                NavigationId = task.AssignmentId,
+                Title = task.Title,
+                Subtitle = task.Description,
+                StatusText = task.Status.ToString(),
+                PrimaryMetric = primaryMetric,
+                CreatedAt = task.CreatedAt,
+                Badges = badges.Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value)).ToList(),
+                RawTask = task
+            };
+        }
+
+        /// <summary>
+        /// Маппер для общего случая в TaskCardVm
+        /// </summary>
+        private static TaskCardVm MapGenericTaskToCard(TaskItemBase task)
+        {
+            return new TaskCardVm
+            {
+                Kind = task.Type.ToString(),
+                NavigationId = task.TaskId,
+                Title = task.Title,
+                Subtitle = task.Description,
+                StatusText = task.Status.ToString(),
+                PrimaryMetric = $"Приоритет: {task.Priority}",
+                CreatedAt = task.CreatedAt,
+                Badges = new List<KeyValuePair<string, string>>
+                {
+                    new("Тип", task.Type.ToString()),
+                    new("Статус", task.Status.ToString())
+                },
+                RawTask = task
+            };
+        }
     }
 }

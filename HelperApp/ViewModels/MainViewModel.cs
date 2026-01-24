@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HelperApp.Models.Inventory;
 using HelperApp.Models.Tasks;
 using HelperApp.Services;
 using System.Collections.ObjectModel;
@@ -125,7 +126,7 @@ public partial class MainViewModel : ObservableObject
                     RawTasks.Add(task);
 
                     // Маппим в карточку для отображения
-                    var card = TaskCardMapper.ToCard(task);
+                    var card = TaskCardVm.TaskCardMapper.MapInventoryTaskToCard(task);
                     TaskCards.Add(card);
                 }
 
@@ -213,7 +214,7 @@ public partial class MainViewModel : ObservableObject
                     foreach (var task in tasks)
                     {
                         RawTasks.Add(task);
-                        var card = TaskCardMapper.ToCard(task);
+                        var card = TaskCardVm.TaskCardMapper.MapInventoryTaskToCard(task);
                         TaskCards.Add(card);
                     }
 
