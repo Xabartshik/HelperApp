@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="HelperApp.Views.InventoryDetailsPage"
+             Title="Детали инвентаризации"
+             BackgroundColor="#1a1a2e"
+             Padding="0">
+
+    <VerticalStackLayout Spacing="0" Padding="0">
+
+        <!-- Верхняя часть - Заголовок с информацией о задаче -->
+        <ScrollView BackgroundColor="#2a2a3e" Padding="0">
+            <VerticalStackLayout Padding="20" Spacing="12" BackgroundColor="#2a2a3e">
+
+                <!-- Кнопка назад -->
+                <Button
+                    Text="← Вернуться"
+                    Command="{Binding GoBackCommand}"
+                    BackgroundColor="#7c3aed"
+                    TextColor="#ffffff"
+                    FontSize="12"
+                    CornerRadius="6"
+                    Padding="12,8"
+                    HorizontalOptions="Start" />
+
+                <!-- Заголовок: код зоны -->
+                <Label
+                    Text="{Binding ZoneCodeShortDescription}"
+                    FontSize="18"
+                    FontAttributes="Bold"
+                    TextColor="#e0b0ff"
+                    LineBreakMode="WordWrap" />
+
+                <!-- Полное описание позиции -->
+                <Label
+                    Text="{Binding ZoneCodeFullDescription, StringFormat='Позиция: {0}'}"
+                    FontSize="12"
+                    TextColor="#b0b0b0"
+                    LineBreakMode="WordWrap"
+                    IsVisible="{Binding ZoneCodeFullDescription, Converter={StaticResource NotNullOrEmptyConverter}}" />
+
+                <!-- Основная информация в сетке -->
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8">
+
+                    <!-- Дата назначения -->
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="0" Spacing="4">
+                        <Label
+                            Text="Дата назначения"
+                            FontSize="11"
+                            TextColor="#888888" />
+                        <Label
+                            Text="{Binding InitiatedAt, StringFormat='dd.MM.yyyy HH:mm'}"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="#ffffff" />
+                    </VerticalStackLayout>
+
+                    <!-- Статус -->
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="1" Spacing="4">
+                        <Label
+                            Text="Статус"
+                            FontSize="11"
+                            TextColor="#888888" />
+                        <Label
+                            Text="{Binding Status}"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="#7c3aed" />
+                    </VerticalStackLayout>
+
+                    <!-- Всего позиций отсканировано -->
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="0" Spacing="4">
+                        <Label
+                            Text="Отсканировано позиций"
+                            FontSize="11"
+                            TextColor="#888888" />
+                        <Label
+                            Text="{Binding ScannedItemsCount, StringFormat='{0} / {1}'}"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="#ffffff" />
+                    </VerticalStackLayout>
+
+                    <!-- Расхождения -->
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="4">
+                        <Label
+                            Text="Расхождения"
+                            FontSize="11"
+                            TextColor="#888888" />
+                        <Label
+                            Text="{Binding VarianceCount}"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="#ff6b6b"
+                            IsVisible="{Binding HasVariances}" />
+                        <Label
+                            Text="0"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="#7c3aed"
+                            IsVisible="{Binding HasVariances, Converter={StaticResource InvertedBoolConverter}}" />
+                    </VerticalStackLayout>
+
+                </Grid>
+
+                <!-- Описание -->
+                <Label
+                    Text="{Binding Description}"
+                    FontSize="12"
+                    TextColor="#b0b0b0"
+                    LineBreakMode="WordWrap"
+                    IsVisible="{Binding Description, Converter={StaticResource NotNullOrEmptyConverter}}" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Нижняя часть - Список позиций -->
+        <Label
+            Text="Позиции для инвентаризации"
+            FontSize="14"
+            FontAttributes="Bold"
+            TextColor="#e0b0ff"
+            Padding="20,12,20,8"
+            BackgroundColor="#1a1a2e" />
+
+        <!-- Список позиций (CollectionView) -->
+        <CollectionView
+            ItemsSource="{Binding InventoryItems}"
+            SelectionMode="Single"
+            Margin="0"
+            Padding="0">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border
+                        Padding="15"
+                        Margin="10,6,10,0"
+                        StrokeThickness="1"
+                        Stroke="#3a3a55"
+                        BackgroundColor="#2a2a3e"
+                        StrokeShape="RoundRectangle 8">
+
+                        <VerticalStackLayout Spacing="8">
+
+                            <!-- Название товара -->
+                            <Label
+                                Text="{Binding ItemName}"
+                                FontSize="14"
+                                FontAttributes="Bold"
+                                TextColor="#ffffff"
+                                LineBreakMode="WordWrap" />
+
+                            <!-- Код позиции -->
+                            <Label
+                                Text="{Binding PositionCode, StringFormat='Код: {0}'}"
+                                FontSize="11"
+                                TextColor="#b0b0b0"
+                                LineBreakMode="WordWrap" />
+
+                            <!-- Ожидаемое и фактическое количество в сетке -->
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label
+                                        Text="Ожидаемое"
+                                        FontSize="10"
+                                        TextColor="#888888" />
+                                    <Label
+                                        Text="{Binding ExpectedQuantity}"
+                                        FontSize="12"
+                                        FontAttributes="Bold"
+                                        TextColor="#7c3aed" />
+                                </VerticalStackLayout>
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label
+                                        Text="Фактическое"
+                                        FontSize="10"
+                                        TextColor="#888888" />
+                                    <Label
+                                        Text="{Binding ActualQuantityDisplay}"
+                                        FontSize="12"
+                                        FontAttributes="Bold"
+                                        TextColor="{Binding ActualQuantityColor}" />
+                                </VerticalStackLayout>
+
+                            </Grid>
+
+                            <!-- Статус позиции -->
+                            <Label
+                                Text="{Binding StatusText}"
+                                FontSize="11"
+                                TextColor="{Binding StatusColor}"
+                                FontAttributes="Bold"
+                                IsVisible="{Binding IsCompleted}" />
+
+                        </VerticalStackLayout>
+
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+        <!-- Empty State -->
+        <StackLayout
+            Padding="20"
+            VerticalOptions="CenterAndExpand"
+            HorizontalOptions="CenterAndExpand"
+            IsVisible="False">
+
+            <StackLayout.Triggers>
+                <DataTrigger TargetType="StackLayout"
+                             Binding="{Binding InventoryItems.Count}"
+                             Value="0">
+                    <Setter Property="IsVisible" Value="True" />
+                </DataTrigger>
+            </StackLayout.Triggers>
+
+            <Label
+                Text="Позиции не найдены"
+                FontSize="14"
+                TextColor="#b0b0b0"
+                HorizontalTextAlignment="Center" />
+        </StackLayout>
+
+    </VerticalStackLayout>
+
+</ContentPage>
