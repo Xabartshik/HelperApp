@@ -156,6 +156,10 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Открыть страницу деталей задачи в зависимости от типа
+    /// Использует встроенную навигацию Shell для расширяемости
+    /// </summary>
     [RelayCommand]
     public async Task OpenTask(TaskCardVm task)
     {
@@ -163,31 +167,91 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            var currentUser = _authService.GetCurrentUser();
-            if (currentUser == null)
+            var route = task.Kind switch
             {
-                _logger.LogWarning("CurrentUser не найден, перенаправление на логин");
-                await Shell.Current.GoToAsync("///login");
-                return;
-            }
-            // Получи employeeId (текущий пользователь)
-            var employeeId = currentUser?.Id ?? 0;
-            
-            // ✅ Передай параметры через query string
-            var navigationParameters = new Dictionary<string, object>
-            {
-                { "assignmentId", task.NavigationId },
-                { "employeeId", employeeId }
+                nameof(TaskType.Inventory) => CreateInventoryDetailsRoute(task),
+                nameof(TaskType.Receipt) => CreateReceiptDetailsRoute(task),
+                nameof(TaskType.Movement) => CreateMovementDetailsRoute(task),
+                nameof(TaskType.Shipping) => CreateShippingDetailsRoute(task),
+                nameof(TaskType.Packing) => CreatePackingDetailsRoute(task),
+                nameof(TaskType.Audit) => CreateAuditDetailsRoute(task),
+                nameof(TaskType.Labeling) => CreateLabelingDetailsRoute(task),
+                nameof(TaskType.Loading) => CreateLoadingDetailsRoute(task),
+                _ => null
             };
-            
-            // Навигация с параметрами
-            await Shell.Current.GoToAsync($"inventory-details?assignmentId={task.NavigationId}&employeeId={employeeId}");
+
+            if (!string.IsNullOrEmpty(route))
+            {
+                await Shell.Current.GoToAsync(route);
+            }
+            else
+            {
+                ErrorMessage = $"Не реализована навигация для типа задачи: {task.Kind}";
+                _logger.LogWarning("Навигация не реализована для типа задачи {Kind}", task.Kind);
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Ошибка навигации: {ex.Message}";
+            _logger.LogError(ex, "Ошибка при открытии задачи {TaskId}", task.NavigationId);
         }
     }
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей инвентаризации
+    /// </summary>
+    private static string CreateInventoryDetailsRoute(TaskCardVm task) => 
+        $"inventory-details?assignmentId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей приёма
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateReceiptDetailsRoute(TaskCardVm task) => 
+        $"receipt-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей перемещения
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateMovementDetailsRoute(TaskCardVm task) => 
+        $"movement-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей отправки
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateShippingDetailsRoute(TaskCardVm task) => 
+        $"shipping-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей упаковки
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreatePackingDetailsRoute(TaskCardVm task) => 
+        $"packing-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей аудита
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateAuditDetailsRoute(TaskCardVm task) => 
+        $"audit-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей маркировки
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateLabelingDetailsRoute(TaskCardVm task) => 
+        $"labeling-details?taskId={task.NavigationId}";
+
+    /// <summary>
+    /// Создать маршрут для страницы деталей загрузки
+    /// TODO: реализовать по мере необходимости
+    /// </summary>
+    private static string CreateLoadingDetailsRoute(TaskCardVm task) => 
+        $"loading-details?taskId={task.NavigationId}";
+
     [RelayCommand]
     public async Task Logout()
     {
