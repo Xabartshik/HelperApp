@@ -200,8 +200,8 @@ public partial class MainViewModel : ObservableObject
     /// <summary>
     /// Создать маршрут для страницы деталей инвентаризации
     /// </summary>
-    private static string CreateInventoryDetailsRoute(TaskCardVm task) => 
-        $"inventory-details?assignmentId={task.NavigationId}";
+    private static string CreateInventoryDetailsRoute(TaskCardVm task) =>
+        $"///inventory-details?assignmentId={task.NavigationId}";
 
     /// <summary>
     /// Создать маршрут для страницы деталей приёма

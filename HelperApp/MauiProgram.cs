@@ -26,11 +26,13 @@ public static class MauiProgram
             // ViewModels
             .AddTransient<LoginViewModel>()
             .AddTransient<MainViewModel>()
+            .AddTransient<InventoryDetailsViewModel>()
 
 
             // Views
             .AddTransient<LoginPage>()
             .AddTransient<MainPage>()
+            .AddTransient<InventoryDetailsPage>()
             .AddSingleton<AppShell>();
 
         builder.Services.AddSingleton<ITaskService, TaskControlTaskService>();

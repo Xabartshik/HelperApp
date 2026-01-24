@@ -4,9 +4,14 @@ namespace HelperApp.Views;
 
 public partial class InventoryDetailsPage : ContentPage
 {
-    public InventoryDetailsPage()
+    private readonly InventoryDetailsViewModel _viewModel;
+
+    public InventoryDetailsPage(InventoryDetailsViewModel viewModel)
     {
         InitializeComponent();
+        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        BindingContext = _viewModel;
+        _viewModel = viewModel;
     }
 
     protected override async void OnAppearing()

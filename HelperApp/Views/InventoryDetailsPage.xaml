@@ -127,8 +127,7 @@
         <CollectionView
             ItemsSource="{Binding InventoryItems}"
             SelectionMode="Single"
-            Margin="0"
-            Padding="0">
+            Margin="0">
 
             <CollectionView.ItemTemplate>
                 <DataTemplate>
