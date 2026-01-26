@@ -1,4 +1,5 @@
 using HelperApp.Services;
+using HelperApp.Views;
 
 namespace HelperApp;
 
@@ -9,25 +10,22 @@ public partial class AppShell : Shell
     public AppShell()
     {
         InitializeComponent();
+
         _authService = IPlatformApplication.Current!.Services.GetService<IAuthService>()!;
+
+        // ВАЖНО: details-страницы регистрируем как routes (а не ShellContent)
+        Routing.RegisterRoute("inventory-details", typeof(InventoryDetailsPage));
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
 
-        // Пытаемся автоматически залогиниться
         var currentUser = await _authService.TryAutoLoginAsync();
 
         if (currentUser != null)
-        {
-            // Если есть валидный токен, переходим на MainPage
             await GoToAsync("///main");
-        }
         else
-        {
-            // Иначе на LoginPage
             await GoToAsync("///login");
-        }
     }
 }

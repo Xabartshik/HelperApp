@@ -17,23 +17,6 @@
         ContentTemplate="{DataTemplate views:MainPage}"
         Route="main" />
 
-    <!-- Маршрут для страницы деталей инвентаризации -->
-    <ShellContent
-        Title="InventoryDetails"
-        ContentTemplate="{DataTemplate views:InventoryDetailsPage}"
-        Route="inventory-details" />
-
-    <!-- Здесь можно добавить маршруты для других типов задач -->
-    <!-- <ShellContent
-        Title="ReceiptDetails"
-        ContentTemplate="{DataTemplate views:ReceiptDetailsPage}"
-        Route="receipt-details" />
-    
-    <ShellContent
-        Title="MovementDetails"
-        ContentTemplate="{DataTemplate views:MovementDetailsPage}"
-        Route="movement-details" /> -->
-
     <Shell.BackButtonBehavior>
         <BackButtonBehavior IsEnabled="False" />
     </Shell.BackButtonBehavior>

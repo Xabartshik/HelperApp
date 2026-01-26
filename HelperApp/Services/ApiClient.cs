@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using HelperApp.Models;
 using HelperApp.Models.Inventory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Devices;
@@ -10,7 +11,6 @@ namespace HelperApp.Services;
 
 public class ApiClient : IApiClient
 {
-
     private const string HasNewTasksForWorkerRouteTemplate = "Inventory/worker/{0}/check-new";
     private const string GetNewAssignmentsForWorkerRouteTemplate = "Inventory/worker/{0}/new-tasks";
     private const string GetInventoryTaskDetailsRouteTemplate = "Inventory/worker/{0}/tasks/{1}/details";
@@ -28,10 +28,9 @@ public class ApiClient : IApiClient
 
     public ApiClient(ILogger<ApiClient> logger)
     {
-        _logger = logger;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClient = new HttpClient();
 
-        // Базовый адрес для эмулятора Android
         var baseAddress = DeviceInfo.Current.Platform == DevicePlatform.Android
             ? "http://10.0.2.2:5000/api/v1/"
             : "http://localhost:5000/api/v1/";
@@ -51,21 +50,19 @@ public class ApiClient : IApiClient
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
-    public async Task<T?> GetAsync<T>(string endpoint, CancellationToken cancellationToken = default)
+    public async Task<T?> GetAsync<T>(string endpoint, CancellationToken ct = default)
     {
         try
         {
             _hasNetwork = true;
 
-            using var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-
+            using var response = await _httpClient.GetAsync(endpoint, ct);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
 
             response.EnsureSuccessStatusCode();
 
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-
+            var content = await response.Content.ReadAsStringAsync(ct);
             if (string.IsNullOrWhiteSpace(content))
                 return default;
 
@@ -74,17 +71,17 @@ public class ApiClient : IApiClient
         catch (HttpRequestException ex)
         {
             _hasNetwork = false;
-            _logger.LogError(ex, "Ошибка сети при GET {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка сети при GET {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при GET {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка при GET {Endpoint}", endpoint);
             throw;
         }
     }
 
-    public async Task<T?> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default)
+    public async Task<T?> PostAsync<T>(string endpoint, object? data = null, CancellationToken ct = default)
     {
         try
         {
@@ -97,15 +94,13 @@ public class ApiClient : IApiClient
                 content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
-            using var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
-
+            using var response = await _httpClient.PostAsync(endpoint, content, ct);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
 
             response.EnsureSuccessStatusCode();
 
-            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
+            var responseContent = await response.Content.ReadAsStringAsync(ct);
             if (string.IsNullOrWhiteSpace(responseContent))
                 return default;
 
@@ -114,31 +109,29 @@ public class ApiClient : IApiClient
         catch (HttpRequestException ex)
         {
             _hasNetwork = false;
-            _logger.LogError(ex, "Ошибка сети при POST {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка сети при POST {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при POST {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка при POST {Endpoint}", endpoint);
             throw;
         }
     }
 
-    public async Task<T?> PostAsync<T>(string endpoint, HttpContent content, CancellationToken cancellationToken = default)
+    public async Task<T?> PostAsync<T>(string endpoint, HttpContent content, CancellationToken ct = default)
     {
         try
         {
             _hasNetwork = true;
 
-            using var response = await _httpClient.PostAsync(endpoint, content, cancellationToken);
-
+            using var response = await _httpClient.PostAsync(endpoint, content, ct);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
 
             response.EnsureSuccessStatusCode();
 
-            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-
+            var responseContent = await response.Content.ReadAsStringAsync(ct);
             if (string.IsNullOrWhiteSpace(responseContent))
                 return default;
 
@@ -147,12 +140,12 @@ public class ApiClient : IApiClient
         catch (HttpRequestException ex)
         {
             _hasNetwork = false;
-            _logger.LogError(ex, "Ошибка сети при POST {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка сети при POST {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при POST {endpoint}", endpoint);
+            _logger.LogError(ex, "Ошибка при POST {Endpoint}", endpoint);
             throw;
         }
     }
@@ -162,33 +155,29 @@ public class ApiClient : IApiClient
     public async Task<bool> HasNewTasksForWorkerAsync(int workerId, CancellationToken cancellationToken = default)
     {
         var endpoint = string.Format(HasNewTasksForWorkerRouteTemplate, workerId);
-        var result = await GetAsync<bool?>(endpoint, cancellationToken);
-        return result ?? false;
+        var result = await GetAsync<TaskCheckResponse>(endpoint, cancellationToken);
+        return result?.HasNewTasks ?? false;
     }
 
-    public async Task<IReadOnlyList<InventoryAssignmentDetailedWithItemDto>?> GetNewAssignmentsForWorkerAsync(
-        int workerId,
-        CancellationToken cancellationToken = default)
+    public Task<List<InventoryAssignmentDetailedWithItemDto>?> GetNewAssignmentsForWorkerAsync(int workerId, CancellationToken cancellationToken = default)
     {
         var endpoint = string.Format(GetNewAssignmentsForWorkerRouteTemplate, workerId);
-        return await GetAsync<List<InventoryAssignmentDetailedWithItemDto>>(endpoint, cancellationToken);
+        return GetAsync<List<InventoryAssignmentDetailedWithItemDto>>(endpoint, cancellationToken);
     }
 
-    public async Task<InventoryAssignmentDetailedWithItemDto?> GetInventoryTaskDetailsAsync(
-        int workerId,
+    public Task<InventoryTaskDetailsDto?> GetInventoryTaskDetailsAsync(
+        int userId,
         int inventoryTaskId,
         CancellationToken cancellationToken = default)
     {
-        var endpoint = string.Format(GetInventoryTaskDetailsRouteTemplate, workerId, inventoryTaskId);
-        return await GetAsync<InventoryAssignmentDetailedWithItemDto>(endpoint, cancellationToken);
+        var endpoint = string.Format(GetInventoryTaskDetailsRouteTemplate, userId, inventoryTaskId);
+        return GetAsync<InventoryTaskDetailsDto>(endpoint, cancellationToken);
     }
 
     // ===== Исключения =====
-
     public class NoNetworkException : Exception
     {
-        public NoNetworkException(string message, Exception? innerException = null)
-            : base(message, innerException) { }
+        public NoNetworkException(string message, Exception? innerException = null) : base(message, innerException) { }
     }
 
     public class UnauthorizedException : Exception

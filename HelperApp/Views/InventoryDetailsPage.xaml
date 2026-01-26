@@ -49,7 +49,7 @@
                             FontSize="11"
                             TextColor="#888888" />
                         <Label
-                            Text="{Binding InitiatedAt, StringFormat='dd.MM.yyyy HH:mm'}"
+                            Text="{Binding InitiatedAt, StringFormat='{0:dd.MM.yyyy HH:mm}'}"
                             FontSize="13"
                             FontAttributes="Bold"
                             TextColor="#ffffff" />
@@ -189,7 +189,7 @@
                             <Label
                                 Text="{Binding StatusText}"
                                 FontSize="11"
-                                TextColor="{Binding StatusColor}"
+                                TextColor="{Binding ActualQuantityColor}"
                                 FontAttributes="Bold"
                                 IsVisible="{Binding IsCompleted}" />
 
