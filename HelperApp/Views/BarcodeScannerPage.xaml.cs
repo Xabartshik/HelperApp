@@ -1,5 +1,6 @@
 using HelperApp.ViewModels;
 using ZXing.Net.Maui;
+using ZXing.Net.Maui.Controls;
 
 namespace HelperApp.Views;
 
@@ -12,6 +13,15 @@ public partial class BarcodeScannerPage : ContentPage
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         BindingContext = _viewModel;
+
+
+        cameraBarcodeReaderView.Options = new BarcodeReaderOptions
+        {
+            Formats = BarcodeFormats.All,  // Или конкретные форматы
+            AutoRotate = true,
+            Multiple = false,
+            TryHarder = true  // Более агрессивная детекция
+        };
     }
 
     protected override void OnAppearing()

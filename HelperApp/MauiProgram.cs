@@ -3,7 +3,7 @@ using HelperApp.ViewModels;
 using HelperApp.Views;
 using Microsoft.Extensions.Logging;
 using ZXing.Net.Maui.Controls;
-
+using ZXing.Net.Maui;
 namespace HelperApp;
 
 public static class MauiProgram
@@ -11,15 +11,19 @@ public static class MauiProgram
     public static MauiApp CreateMauiApp()
     {
         var builder = MauiApp.CreateBuilder();
-
+#if DEBUG
+        builder.Logging.ClearProviders();
+        builder.Logging.SetMinimumLevel(LogLevel.Debug);
+        builder.Logging.AddDebug();
+        builder.Logging.AddConsole(); // на Android это будет видно через logcat
+#endif
         builder
             .UseMauiApp<App>()
+            .UseBarcodeReader()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
             })
-            // Добавляем ZXing
-            .UseBarcodeReader()
 
             // Сервисы
             .Services
@@ -40,10 +44,6 @@ public static class MauiProgram
             .AddSingleton<AppShell>();
 
         builder.Services.AddSingleton<ITaskService, TaskControlTaskService>();
-
-#if DEBUG
-        builder.Logging.AddDebug();
-#endif
         return builder.Build();
     }
 }

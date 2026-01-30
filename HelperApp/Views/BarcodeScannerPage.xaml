@@ -10,11 +10,14 @@
 
         <!-- Камера для сканирования -->
         <zxing:CameraBarcodeReaderView
+       x:Name="cameraBarcodeReaderView"
             Grid.Row="0"
             IsDetecting="{Binding IsScanning}"
             BarcodesDetected="OnBarcodesDetected"
             HorizontalOptions="FillAndExpand"
-            VerticalOptions="FillAndExpand" />
+            VerticalOptions="FillAndExpand"
+            CameraLocation="Rear"
+            IsTorchOn="False" />
 
         <!-- Рамка прицела в центре -->
         <Border
