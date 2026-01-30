@@ -2,6 +2,7 @@ using HelperApp.Services;
 using HelperApp.ViewModels;
 using HelperApp.Views;
 using Microsoft.Extensions.Logging;
+using ZXing.Net.Maui.Controls;
 
 namespace HelperApp;
 
@@ -17,6 +18,8 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
             })
+            // Добавляем ZXing
+            .UseBarcodeReader()
 
             // Сервисы
             .Services
@@ -27,12 +30,13 @@ public static class MauiProgram
             .AddTransient<LoginViewModel>()
             .AddTransient<MainViewModel>()
             .AddTransient<InventoryDetailsViewModel>()
-
+            .AddTransient<BarcodeScannerViewModel>()
 
             // Views
             .AddTransient<LoginPage>()
             .AddTransient<MainPage>()
             .AddTransient<InventoryDetailsPage>()
+            .AddTransient<BarcodeScannerPage>()
             .AddSingleton<AppShell>();
 
         builder.Services.AddSingleton<ITaskService, TaskControlTaskService>();

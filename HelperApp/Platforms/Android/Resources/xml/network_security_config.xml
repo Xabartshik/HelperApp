@@ -1,9 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-	<base-config cleartextTrafficPermitted="false" />
-
-	<!-- разрешаем HTTP только для эмулятора -->
+	<!-- Разрешаем cleartext (HTTP) трафик для локальной разработки -->
 	<domain-config cleartextTrafficPermitted="true">
 		<domain includeSubdomains="true">10.0.2.2</domain>
+		<!-- Эмулятор -->
+		<domain includeSubdomains="true">192.168.0.100</domain>
+		<!-- Ваш компьютер -->
+		<domain includeSubdomains="true">192.168.0.1</domain>
+		<!-- Роутер -->
+		<domain includeSubdomains="true">localhost</domain>
+		<domain includeSubdomains="true">127.0.0.1</domain>
 	</domain-config>
 </network-security-config>

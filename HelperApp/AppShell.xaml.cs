@@ -15,6 +15,7 @@ public partial class AppShell : Shell
 
         // ВАЖНО: details-страницы регистрируем как routes (а не ShellContent)
         Routing.RegisterRoute("inventory-details", typeof(InventoryDetailsPage));
+        Routing.RegisterRoute("scanner", typeof(BarcodeScannerPage));
     }
 
     protected override async void OnAppearing()

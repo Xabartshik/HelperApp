@@ -31,13 +31,89 @@ public class ApiClient : IApiClient
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClient = new HttpClient();
 
-        var baseAddress = DeviceInfo.Current.Platform == DevicePlatform.Android
-            ? "http://10.0.2.2:5000/api/v1/"
-            : "http://localhost:5000/api/v1/";
+        var baseAddress = GetBaseAddress();
 
         _httpClient.BaseAddress = new Uri(baseAddress);
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
+
+    /// <summary>
+    /// Определяет базовый адрес API в зависимости от платформы и типа устройства
+    /// </summary>
+    private string GetBaseAddress()
+    {
+#if ANDROID
+        // Проверяем, работаем ли мы на эмуляторе
+        bool isEmulator = IsAndroidEmulator();
+
+        if (isEmulator)
+        {
+            _logger.LogInformation("Обнаружен Android эмулятор, используем 10.0.2.2");
+            return "http://10.0.2.2:5000/api/v1/";
+        }
+        else
+        {
+            // Для физического Android устройства
+            // ВАЖНО: Замените на IP адрес вашего компьютера!
+            // Узнать можно командой: ipconfig (Windows) или ifconfig (Linux/Mac)
+            var physicalDeviceAddress = "http://192.168.0.100:5000/api/v1/";
+
+            _logger.LogInformation("Обнаружено физическое Android устройство, используем {Address}", physicalDeviceAddress);
+            return physicalDeviceAddress;
+        }
+#elif IOS
+        // Для iOS симулятора localhost работает напрямую
+        _logger.LogInformation("iOS платформа, используем localhost");
+        return "http://localhost:5000/api/v1/";
+#else
+        // Для других платформ (Windows, MacCatalyst и т.д.)
+        _logger.LogInformation("Другая платформа, используем localhost");
+        return "http://localhost:5000/api/v1/";
+#endif
+    }
+
+#if ANDROID
+    /// <summary>
+    /// Проверяет, является ли текущее Android устройство эмулятором
+    /// </summary>
+    private bool IsAndroidEmulator()
+    {
+        try
+        {
+            var fingerprint = Android.OS.Build.Fingerprint?.ToLower() ?? string.Empty;
+            var model = Android.OS.Build.Model?.ToLower() ?? string.Empty;
+            var manufacturer = Android.OS.Build.Manufacturer?.ToLower() ?? string.Empty;
+            var product = Android.OS.Build.Product?.ToLower() ?? string.Empty;
+            var hardware = Android.OS.Build.Hardware?.ToLower() ?? string.Empty;
+
+            // Проверяем различные признаки эмулятора
+            bool isEmulator =
+                fingerprint.Contains("generic") ||
+                fingerprint.Contains("unknown") ||
+                model.Contains("google_sdk") ||
+                model.Contains("emulator") ||
+                model.Contains("android sdk") ||
+                manufacturer.Contains("genymotion") ||
+                product.Contains("sdk") ||
+                product.Contains("google_sdk") ||
+                product.Contains("sdk_gphone") ||
+                product.Contains("vbox86p") ||
+                hardware.Contains("goldfish") ||
+                hardware.Contains("ranchu");
+
+            _logger.LogDebug(
+                "Device info - Fingerprint: {Fingerprint}, Model: {Model}, Manufacturer: {Manufacturer}, Product: {Product}, Hardware: {Hardware}, IsEmulator: {IsEmulator}",
+                fingerprint, model, manufacturer, product, hardware, isEmulator);
+
+            return isEmulator;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Не удалось определить тип устройства, предполагаем эмулятор");
+            return true; // На всякий случай возвращаем true
+        }
+    }
+#endif
 
     public void SetAuthorizationToken(string? token)
     {

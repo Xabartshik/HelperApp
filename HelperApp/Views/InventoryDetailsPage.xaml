@@ -6,10 +6,11 @@
              BackgroundColor="#1a1a2e"
              Padding="0">
 
-    <VerticalStackLayout Spacing="0" Padding="0">
+    <!-- Один общий ScrollView для всего контента -->
+    <ScrollView>
+        <VerticalStackLayout Spacing="0" Padding="0">
 
-        <!-- Верхняя часть - Заголовок с информацией о задаче -->
-        <ScrollView BackgroundColor="#2a2a3e" Padding="0">
+            <!-- Верхняя часть - Заголовок с информацией о задаче -->
             <VerticalStackLayout Padding="20" Spacing="12" BackgroundColor="#2a2a3e">
 
                 <!-- Кнопка назад -->
@@ -112,198 +113,196 @@
                     IsVisible="{Binding Description, Converter={StaticResource NotNullOrEmptyConverter}}" />
 
             </VerticalStackLayout>
-        </ScrollView>
 
-        <!-- Нижняя часть - Сгруппированные позиции -->
-        <Label
-            Text="Позиции для инвентаризации"
-            FontSize="14"
-            FontAttributes="Bold"
-            TextColor="#e0b0ff"
-            Padding="20,12,20,8"
-            BackgroundColor="#1a1a2e" />
+            <!-- Нижняя часть - Сгруппированные позиции -->
+            <Label
+                Text="Позиции для инвентаризации"
+                FontSize="14"
+                FontAttributes="Bold"
+                TextColor="#e0b0ff"
+                Padding="20,12,20,8"
+                BackgroundColor="#1a1a2e" />
 
-        <!-- Список групп позиций -->
-        <CollectionView
-            ItemsSource="{Binding GroupedInventoryItems}"
-            SelectionMode="None"
-            Margin="0">
+            <!-- Список групп позиций - используем BindableLayout вместо CollectionView -->
+            <VerticalStackLayout
+                BindableLayout.ItemsSource="{Binding GroupedInventoryItems}"
+                Spacing="0"
+                Padding="0">
 
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <VerticalStackLayout Spacing="0" Padding="10,6,10,0">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <VerticalStackLayout Spacing="0" Padding="10,6,10,0">
 
-                        <!-- Блок с кодом позиции (заголовок группы) -->
-                        <Border
-                            Padding="15,12"
-                            StrokeThickness="1"
-                            Stroke="#7c3aed"
-                            BackgroundColor="#3a3a55"
-                            StrokeShape="RoundRectangle 8">
+                            <!-- Блок с кодом позиции (заголовок группы) -->
+                            <Border
+                                Padding="15,12"
+                                StrokeThickness="1"
+                                Stroke="#7c3aed"
+                                BackgroundColor="#3a3a55"
+                                StrokeShape="RoundRectangle 8">
 
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding ToggleExpandCommand}" />
-                            </Border.GestureRecognizers>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ToggleExpandCommand}" />
+                                </Border.GestureRecognizers>
 
-                            <Grid ColumnDefinitions="*,Auto">
-                                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                        <Label
+                                            Text="{Binding GroupHeader}"
+                                            FontSize="14"
+                                            FontAttributes="Bold"
+                                            TextColor="#ffffff" />
+                                        <Label
+                                            FontSize="11"
+                                            TextColor="#b0b0b0">
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="Отсканировано: " />
+                                                    <Span Text="{Binding ScannedCount}" />
+                                                    <Span Text=" из " />
+                                                    <Span Text="{Binding ItemCount}" />
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+                                    </VerticalStackLayout>
+
+                                    <!-- Иконка раскрытия/скрытия -->
                                     <Label
-                                        Text="{Binding GroupHeader}"
-                                        FontSize="14"
-                                        FontAttributes="Bold"
-                                        TextColor="#ffffff" />
+                                        Grid.Column="1"
+                                        Text="▼"
+                                        FontSize="16"
+                                        TextColor="#7c3aed"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding IsExpanded, Converter={StaticResource InvertedBoolConverter}}" />
                                     <Label
-                                        Text="{Binding ScannedCount, StringFormat='Отсканировано: {0} из {1}'}"
-                                        FontSize="11"
-                                        TextColor="#b0b0b0">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="Отсканировано: " />
-                                                <Span Text="{Binding ScannedCount}" />
-                                                <Span Text=" из " />
-                                                <Span Text="{Binding ItemCount}" />
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
+                                        Grid.Column="1"
+                                        Text="▲"
+                                        FontSize="16"
+                                        TextColor="#7c3aed"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding IsExpanded}" />
+                                </Grid>
+
+                            </Border>
+
+                            <!-- Раскрываемый блок с позициями и кнопкой сканирования -->
+                            <VerticalStackLayout
+                                Spacing="8"
+                                Padding="0,8,0,0"
+                                IsVisible="{Binding IsExpanded}">
+
+                                <!-- Кнопка сканирования -->
+                                <Button
+                                    Text="Сканировать"
+                                    Command="{Binding ScanItemsCommand}"
+                                    BackgroundColor="#7c3aed"
+                                    TextColor="#ffffff"
+                                    FontSize="13"
+                                    CornerRadius="6"
+                                    Padding="12,8"
+                                    HorizontalOptions="Fill"
+                                    Margin="0,0,0,8" />
+
+                                <!-- Список позиций внутри группы - используем BindableLayout -->
+                                <VerticalStackLayout
+                                    BindableLayout.ItemsSource="{Binding Items}"
+                                    Spacing="6">
+
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border
+                                                Padding="15"
+                                                StrokeThickness="1"
+                                                Stroke="#3a3a55"
+                                                BackgroundColor="#2a2a3e"
+                                                StrokeShape="RoundRectangle 8">
+
+                                                <VerticalStackLayout Spacing="8">
+
+                                                    <!-- Название товара -->
+                                                    <Label
+                                                        Text="{Binding ItemName}"
+                                                        FontSize="13"
+                                                        FontAttributes="Bold"
+                                                        TextColor="#ffffff"
+                                                        LineBreakMode="WordWrap" />
+
+                                                    <!-- Ожидаемое и фактическое количество в сетке -->
+                                                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+
+                                                        <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                                            <Label
+                                                                Text="Ожидаемое"
+                                                                FontSize="10"
+                                                                TextColor="#888888" />
+                                                            <Label
+                                                                Text="{Binding ExpectedQuantity}"
+                                                                FontSize="12"
+                                                                FontAttributes="Bold"
+                                                                TextColor="#7c3aed" />
+                                                        </VerticalStackLayout>
+
+                                                        <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                                            <Label
+                                                                Text="Фактическое"
+                                                                FontSize="10"
+                                                                TextColor="#888888" />
+                                                            <Label
+                                                                Text="{Binding ActualQuantityDisplay}"
+                                                                FontSize="12"
+                                                                FontAttributes="Bold"
+                                                                TextColor="{Binding ActualQuantityColor}" />
+                                                        </VerticalStackLayout>
+
+                                                    </Grid>
+
+                                                    <!-- Статус позиции -->
+                                                    <Label
+                                                        Text="{Binding StatusText}"
+                                                        FontSize="11"
+                                                        TextColor="{Binding ActualQuantityColor}"
+                                                        FontAttributes="Bold"
+                                                        IsVisible="{Binding IsCompleted}" />
+
+                                                </VerticalStackLayout>
+
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+
                                 </VerticalStackLayout>
 
-                                <!-- Иконка раскрытия/скрытия -->
-                                <Label
-                                    Grid.Column="1"
-                                    Text="▼"
-                                    FontSize="16"
-                                    TextColor="#7c3aed"
-                                    VerticalOptions="Center"
-                                    IsVisible="{Binding IsExpanded, Converter={StaticResource InvertedBoolConverter}}" />
-                                <Label
-                                    Grid.Column="1"
-                                    Text="▲"
-                                    FontSize="16"
-                                    TextColor="#7c3aed"
-                                    VerticalOptions="Center"
-                                    IsVisible="{Binding IsExpanded}" />
-                            </Grid>
-
-                        </Border>
-
-                        <!-- Раскрываемый блок с позициями и кнопкой сканирования -->
-                        <VerticalStackLayout
-                            Spacing="8"
-                            Padding="0,8,0,0"
-                            IsVisible="{Binding IsExpanded}">
-
-                            <!-- Кнопка сканирования -->
-                            <Button
-                                Text="Сканировать"
-                                Command="{Binding ScanItemsCommand}"
-                                BackgroundColor="#7c3aed"
-                                TextColor="#ffffff"
-                                FontSize="13"
-                                CornerRadius="6"
-                                Padding="12,8"
-                                HorizontalOptions="Fill"
-                                Margin="0,0,0,8" />
-
-                            <!-- Список позиций внутри группы -->
-                            <CollectionView
-                                ItemsSource="{Binding Items}"
-                                SelectionMode="None">
-
-                                <CollectionView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border
-                                            Padding="15"
-                                            Margin="0,0,0,6"
-                                            StrokeThickness="1"
-                                            Stroke="#3a3a55"
-                                            BackgroundColor="#2a2a3e"
-                                            StrokeShape="RoundRectangle 8">
-
-                                            <VerticalStackLayout Spacing="8">
-
-                                                <!-- Название товара -->
-                                                <Label
-                                                    Text="{Binding ItemName}"
-                                                    FontSize="13"
-                                                    FontAttributes="Bold"
-                                                    TextColor="#ffffff"
-                                                    LineBreakMode="WordWrap" />
-
-                                                <!-- Ожидаемое и фактическое количество в сетке -->
-                                                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-
-                                                    <VerticalStackLayout Grid.Column="0" Spacing="2">
-                                                        <Label
-                                                            Text="Ожидаемое"
-                                                            FontSize="10"
-                                                            TextColor="#888888" />
-                                                        <Label
-                                                            Text="{Binding ExpectedQuantity}"
-                                                            FontSize="12"
-                                                            FontAttributes="Bold"
-                                                            TextColor="#7c3aed" />
-                                                    </VerticalStackLayout>
-
-                                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                                        <Label
-                                                            Text="Фактическое"
-                                                            FontSize="10"
-                                                            TextColor="#888888" />
-                                                        <Label
-                                                            Text="{Binding ActualQuantityDisplay}"
-                                                            FontSize="12"
-                                                            FontAttributes="Bold"
-                                                            TextColor="{Binding ActualQuantityColor}" />
-                                                    </VerticalStackLayout>
-
-                                                </Grid>
-
-                                                <!-- Статус позиции -->
-                                                <Label
-                                                    Text="{Binding StatusText}"
-                                                    FontSize="11"
-                                                    TextColor="{Binding ActualQuantityColor}"
-                                                    FontAttributes="Bold"
-                                                    IsVisible="{Binding IsCompleted}" />
-
-                                            </VerticalStackLayout>
-
-                                        </Border>
-                                    </DataTemplate>
-                                </CollectionView.ItemTemplate>
-
-                            </CollectionView>
+                            </VerticalStackLayout>
 
                         </VerticalStackLayout>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
 
-                    </VerticalStackLayout>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
+            </VerticalStackLayout>
 
-        </CollectionView>
+            <!-- Empty State -->
+            <VerticalStackLayout
+                Padding="20"
+                Spacing="8"
+                VerticalOptions="CenterAndExpand"
+                HorizontalOptions="CenterAndExpand">
 
-        <!-- Empty State -->
-        <StackLayout
-            Padding="20"
-            VerticalOptions="CenterAndExpand"
-            HorizontalOptions="CenterAndExpand"
-            IsVisible="False">
+                <VerticalStackLayout.Triggers>
+                    <DataTrigger TargetType="VerticalStackLayout"
+                                 Binding="{Binding GroupedInventoryItems.Count}"
+                                 Value="0">
+                        <Setter Property="IsVisible" Value="True" />
+                    </DataTrigger>
+                </VerticalStackLayout.Triggers>
 
-            <StackLayout.Triggers>
-                <DataTrigger TargetType="StackLayout"
-                             Binding="{Binding GroupedInventoryItems.Count}"
-                             Value="0">
-                    <Setter Property="IsVisible" Value="True" />
-                </DataTrigger>
-            </StackLayout.Triggers>
+                <Label
+                    Text="Позиции не найдены"
+                    FontSize="14"
+                    TextColor="#b0b0b0"
+                    HorizontalTextAlignment="Center" />
+            </VerticalStackLayout>
 
-            <Label
-                Text="Позиции не найдены"
-                FontSize="14"
-                TextColor="#b0b0b0"
-                HorizontalTextAlignment="Center" />
-        </StackLayout>
-
-    </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>
