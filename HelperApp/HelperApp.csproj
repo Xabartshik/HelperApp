@@ -60,6 +60,7 @@
 	  <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.2" />
 	  <PackageReference Include="Microsoft.Maui.Essentials" Version="9.0.120" />
 	  <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
+	  <PackageReference Include="ZXing.Net.Maui" Version="0.6.0" />
 	</ItemGroup>
 
 
@@ -70,6 +71,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <MauiXaml Update="Views\BarcodeScannerPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\LoginPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

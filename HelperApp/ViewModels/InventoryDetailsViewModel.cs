@@ -28,7 +28,8 @@ public partial class InventoryDetailsViewModel : ObservableObject
     [ObservableProperty] private int varianceCount;
     [ObservableProperty] private bool hasVariances;
 
-    [ObservableProperty] private ObservableCollection<InventoryItemVm> inventoryItems = new();
+    // Сгруппированные позиции по PositionCode
+    [ObservableProperty] private ObservableCollection<InventoryGroupVm> groupedInventoryItems = new();
 
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string errorMessage = string.Empty;
@@ -76,27 +77,37 @@ public partial class InventoryDetailsViewModel : ObservableObject
             Status = "В процессе";
             Description = $"Инвентаризация зоны {dto.ZoneCode}";
 
-            // Items
-            InventoryItems.Clear();
+            // Группировка позиций по PositionCode
+            GroupedInventoryItems.Clear();
 
-            foreach (var item in dto.Items)
+            var grouped = dto.Items
+                .GroupBy(item => item.PositionCode)
+                .OrderBy(g => g.Key);
+
+            foreach (var group in grouped)
             {
-                InventoryItems.Add(new InventoryItemVm
+                var items = group.Select(item => new InventoryItemVm
                 {
                     ItemId = item.ItemId,
                     ItemName = item.ItemName,
                     PositionCode = item.PositionCode,
                     ExpectedQuantity = item.ExpectedQuantity,
-
-                    // На вашем GET details фактического количества нет, поэтому оставляем null
                     ActualQuantity = null
+                }).ToList();
+
+                GroupedInventoryItems.Add(new InventoryGroupVm
+                {
+                    PositionCode = group.Key,
+                    Items = new ObservableCollection<InventoryItemVm>(items),
+                    IsExpanded = false
                 });
             }
 
-            // Stats (как раньше)
-            TotalItems = InventoryItems.Count;
-            ScannedItemsCount = InventoryItems.Count(i => i.ActualQuantity.HasValue);
-            VarianceCount = InventoryItems.Count(i => i.ActualQuantity.HasValue && i.ActualQuantity != i.ExpectedQuantity);
+            // Stats
+            var allItems = GroupedInventoryItems.SelectMany(g => g.Items).ToList();
+            TotalItems = allItems.Count;
+            ScannedItemsCount = allItems.Count(i => i.ActualQuantity.HasValue);
+            VarianceCount = allItems.Count(i => i.ActualQuantity.HasValue && i.ActualQuantity != i.ExpectedQuantity);
             HasVariances = VarianceCount > 0;
 
             _logger.LogInformation("Детали инвентаризации загружены (workerId={WorkerId}, assignmentId={AssignmentId})", WorkerId, AssignmentId);
@@ -126,6 +137,42 @@ public partial class InventoryDetailsViewModel : ObservableObject
     public void Cleanup()
     {
         _logger.LogDebug("InventoryDetailsViewModel очищена");
+    }
+}
+
+/// <summary>
+/// Группа позиций инвентаризации по коду позиции товара
+/// </summary>
+public partial class InventoryGroupVm : ObservableObject
+{
+    [ObservableProperty] private string positionCode = string.Empty;
+    [ObservableProperty] private ObservableCollection<InventoryItemVm> items = new();
+    [ObservableProperty] private bool isExpanded;
+
+    public int ItemCount => Items?.Count ?? 0;
+
+    public int ExpectedTotalQuantity => Items?.Sum(i => i.ExpectedQuantity) ?? 0;
+
+    public int ActualTotalQuantity => Items?.Sum(i => i.ActualQuantity ?? 0) ?? 0;
+
+    public int ScannedCount => Items?.Count(i => i.ActualQuantity.HasValue) ?? 0;
+
+    public string GroupHeader => $"Код: {PositionCode} ({ItemCount} шт.)";
+
+    public string ScanButtonText => IsExpanded ? "Сканировать" : "";
+
+    [RelayCommand]
+    private void ToggleExpand()
+    {
+        IsExpanded = !IsExpanded;
+        OnPropertyChanged(nameof(ScanButtonText));
+    }
+
+    [RelayCommand]
+    private async Task ScanItems()
+    {
+        // Здесь будет логика сканирования
+        await Application.Current.MainPage.DisplayAlert("Сканирование", $"Сканирование позиций с кодом {PositionCode}", "OK");
     }
 }
 
