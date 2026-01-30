@@ -17,10 +17,10 @@ public partial class BarcodeScannerPage : ContentPage
 
         cameraBarcodeReaderView.Options = new BarcodeReaderOptions
         {
-            Formats = BarcodeFormats.All,  // Или конкретные форматы
+            Formats = BarcodeFormat.Code128 | BarcodeFormat.Ean13 | BarcodeFormat.Ean8,
             AutoRotate = true,
             Multiple = false,
-            TryHarder = true  // Более агрессивная детекция
+            TryHarder = false,
         };
     }
 
