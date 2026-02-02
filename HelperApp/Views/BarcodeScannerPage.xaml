@@ -10,7 +10,7 @@
 
         <!-- Камера для сканирования -->
         <zxing:CameraBarcodeReaderView
-       x:Name="cameraBarcodeReaderView"
+            x:Name="cameraBarcodeReaderView"
             Grid.Row="0"
             IsDetecting="{Binding IsScanning}"
             BarcodesDetected="OnBarcodesDetected"
@@ -31,6 +31,39 @@
             HorizontalOptions="Center"
             VerticalOptions="Center"
             IsEnabled="False" />
+
+        <!-- Оверлей: тап для продолжения -->
+        <Grid Grid.Row="0"
+              IsVisible="{Binding IsAwaitingTap}"
+              BackgroundColor="#80000000">
+
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding ContinueScanningCommand}" />
+            </Grid.GestureRecognizers>
+
+            <Border StrokeThickness="0"
+                    BackgroundColor="#2a2a3e"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="18"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Margin="20">
+
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="{Binding TapToContinueMessage}"
+                           TextColor="#ffffff"
+                           FontSize="14"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap" />
+
+                    <Label Text="Коснитесь в любом месте"
+                           TextColor="#e0b0ff"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+            </Border>
+        </Grid>
 
         <!-- Информационная панель -->
         <VerticalStackLayout

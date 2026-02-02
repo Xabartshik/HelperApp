@@ -280,11 +280,13 @@
 
             </VerticalStackLayout>
 
-            <!-- Empty State -->
+            <!-- Empty State (фикс "белого пятна": скрыто по умолчанию) -->
             <VerticalStackLayout
+                IsVisible="False"
+                BackgroundColor="#1a1a2e"
                 Padding="20"
                 Spacing="8"
-                VerticalOptions="CenterAndExpand"
+                VerticalOptions="Start"
                 HorizontalOptions="CenterAndExpand">
 
                 <VerticalStackLayout.Triggers>

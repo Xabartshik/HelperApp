@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using HelperApp.Messages;
 using HelperApp.Models;
 using HelperApp.Services;
 using System.Collections.ObjectModel;
@@ -34,12 +36,66 @@ public partial class InventoryDetailsViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string errorMessage = string.Empty;
 
+    // Чтобы не перезагружать и не затирать ActualQuantity при каждом OnAppearing (например, при возврате со сканера)
+    private int _loadedWorkerId;
+    private int _loadedAssignmentId;
+    private bool _isLoaded;
+
+    private bool _messengerRegistered;
+
     public InventoryDetailsViewModel(
         ILogger<InventoryDetailsViewModel> logger,
         IApiClient apiClient)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+
+        RegisterMessenger();
+    }
+
+    private void RegisterMessenger()
+    {
+        if (_messengerRegistered)
+            return;
+
+        WeakReferenceMessenger.Default.Register<BarcodeScannedMessage>(this, (_, message) =>
+        {
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await HandleBarcodeScannedAsync(message.Value);
+            });
+        });
+
+        _messengerRegistered = true;
+    }
+
+    private async Task HandleBarcodeScannedAsync(BarcodeScannedPayload payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload.PositionCode) || string.IsNullOrWhiteSpace(payload.Barcode))
+            return;
+
+        // Если данные ещё не загружены — просто игнорируем (сканер всё равно может продолжать, но применять будет некуда)
+        if (GroupedInventoryItems.Count == 0)
+            return;
+
+        var group = GroupedInventoryItems.FirstOrDefault(g =>
+            string.Equals(g.PositionCode, payload.PositionCode, StringComparison.Ordinal));
+
+        if (group is null)
+        {
+            WeakReferenceMessenger.Default.Send(new BarcodeProcessedMessage(
+                new BarcodeProcessedPayload(payload.PositionCode, payload.Barcode, false, "Позиция не найдена в текущей задаче")));
+            return;
+        }
+
+        var result = await group.ProcessScannedCodeAsync(payload.Barcode);
+
+        // Статистика обновится через ItemsUpdated, но если код не применился — тоже отдадим фидбек
+        if (result.IsApplied)
+            UpdateStatistics();
+
+        WeakReferenceMessenger.Default.Send(new BarcodeProcessedMessage(
+            new BarcodeProcessedPayload(payload.PositionCode, payload.Barcode, result.IsApplied, result.Message)));
     }
 
     public async Task InitializeAsync()
@@ -51,7 +107,19 @@ public partial class InventoryDetailsViewModel : ObservableObject
             return;
         }
 
+        if (_isLoaded
+            && _loadedWorkerId == WorkerId
+            && _loadedAssignmentId == AssignmentId
+            && GroupedInventoryItems.Count > 0)
+        {
+            return;
+        }
+
         await LoadInventoryDetailsAsync();
+
+        _loadedWorkerId = WorkerId;
+        _loadedAssignmentId = AssignmentId;
+        _isLoaded = true;
     }
 
     private async Task LoadInventoryDetailsAsync()
@@ -73,11 +141,9 @@ public partial class InventoryDetailsViewModel : ObservableObject
             ZoneCodeShortDescription = dto.ZoneCode;
             ZoneCodeFullDescription = dto.ZoneCode;
 
-            // Эти поля в DTO сейчас не приходят — задаём осмысленные значения
             Status = "В процессе";
             Description = $"Инвентаризация зоны {dto.ZoneCode}";
 
-            // Группировка позиций по PositionCode
             GroupedInventoryItems.Clear();
 
             var grouped = dto.Items
@@ -102,7 +168,6 @@ public partial class InventoryDetailsViewModel : ObservableObject
                     IsExpanded = false
                 };
 
-                // Подписываемся на событие обновления статистики
                 groupVm.ItemsUpdated += OnGroupItemsUpdated;
 
                 GroupedInventoryItems.Add(groupVm);
@@ -146,19 +211,28 @@ public partial class InventoryDetailsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public Task GoBack() => Shell.Current.GoToAsync("..");
+    public async Task GoBack()
+    {
+        Cleanup();
+        await Shell.Current.GoToAsync("..");
+    }
 
     public void Cleanup()
     {
-        // Отписываемся от событий
         foreach (var group in GroupedInventoryItems)
-        {
             group.ItemsUpdated -= OnGroupItemsUpdated;
+
+        if (_messengerRegistered)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+            _messengerRegistered = false;
         }
 
         _logger.LogDebug("InventoryDetailsViewModel очищена");
     }
 }
+
+public sealed record ScanApplyResult(bool IsApplied, string Message);
 
 /// <summary>
 /// Группа позиций инвентаризации по коду позиции товара
@@ -174,15 +248,11 @@ public partial class InventoryGroupVm : ObservableObject
     public event EventHandler? ItemsUpdated;
 
     public int ItemCount => Items?.Count ?? 0;
-
     public int ExpectedTotalQuantity => Items?.Sum(i => i.ExpectedQuantity) ?? 0;
-
     public int ActualTotalQuantity => Items?.Sum(i => i.ActualQuantity ?? 0) ?? 0;
-
     public int ScannedCount => Items?.Count(i => i.ActualQuantity.HasValue) ?? 0;
 
     public string GroupHeader => $"Код: {PositionCode} ({ItemCount} шт.)";
-
     public string ScanButtonText => IsExpanded ? "Сканировать" : "";
 
     public InventoryGroupVm(ILogger logger)
@@ -202,7 +272,6 @@ public partial class InventoryGroupVm : ObservableObject
     {
         try
         {
-            // Переходим на страницу сканирования, передавая код позиции
             await Shell.Current.GoToAsync("scanner", new Dictionary<string, object>
             {
                 ["positionCode"] = PositionCode
@@ -216,87 +285,39 @@ public partial class InventoryGroupVm : ObservableObject
     }
 
     /// <summary>
-    /// Обрабатывает отсканированный код
+    /// Обрабатывает отсканированный код (без UI-диалогов, чтобы не мешать непрерывному сканированию)
     /// </summary>
-    public async Task ProcessScannedCodeAsync(string scannedCode)
+    public Task<ScanApplyResult> ProcessScannedCodeAsync(string scannedCode)
     {
         if (string.IsNullOrWhiteSpace(scannedCode))
-            return;
+            return Task.FromResult(new ScanApplyResult(false, "Пустой код"));
 
         try
         {
-            _logger.LogInformation("Обработка отсканированного кода: {Code} для позиции {PositionCode}", scannedCode, PositionCode);
+            _logger.LogInformation("Обработка кода: {Code} для позиции {PositionCode}", scannedCode, PositionCode);
 
-            // Для упрощения считаем, что scannedCode == ItemId (в виде строки)
+            // Текущее допущение проекта: scannedCode == ItemId (строкой)
             if (!int.TryParse(scannedCode, out int itemId))
-            {
-                await Application.Current.MainPage.DisplayAlert(
-                    "Ошибка",
-                    $"Неверный формат штрих-кода: {scannedCode}",
-                    "OK");
-                return;
-            }
+                return Task.FromResult(new ScanApplyResult(false, $"Неверный формат: {scannedCode}"));
 
-            // Ищем товар с таким ItemId среди ожидаемых в этой группе
             var item = Items.FirstOrDefault(i => i.ItemId == itemId);
+            if (item is null)
+                return Task.FromResult(new ScanApplyResult(false, $"Товар не найден в позиции {PositionCode}"));
 
-            if (item != null)
-            {
-                // Товар найден среди ожидаемых - увеличиваем фактическое количество
-                item.ActualQuantity = (item.ActualQuantity ?? 0) + 1;
+            item.ActualQuantity = (item.ActualQuantity ?? 0) + 1;
 
-                _logger.LogInformation(
-                    "Товар {ItemName} (ID: {ItemId}) отсканирован. Фактическое количество: {ActualQuantity}",
-                    item.ItemName, item.ItemId, item.ActualQuantity);
+            _logger.LogInformation("Товар {ItemName} (ID: {ItemId}) учтён. Факт={ActualQuantity}", item.ItemName, item.ItemId, item.ActualQuantity);
 
-                // Обновляем UI
-                OnPropertyChanged(nameof(ScannedCount));
-                OnPropertyChanged(nameof(ActualTotalQuantity));
+            OnPropertyChanged(nameof(ScannedCount));
+            OnPropertyChanged(nameof(ActualTotalQuantity));
+            ItemsUpdated?.Invoke(this, EventArgs.Empty);
 
-                // Уведомляем родительскую ViewModel об изменениях
-                ItemsUpdated?.Invoke(this, EventArgs.Empty);
-
-                await Application.Current.MainPage.DisplayAlert(
-                    "Успешно",
-                    $"Отсканирован: {item.ItemName}\nФактическое количество: {item.ActualQuantity}",
-                    "OK");
-            }
-            else
-            {
-                // Товар НЕ найден среди ожидаемых для этого кода позиции
-                _logger.LogWarning(
-                    "Отсканирован неожиданный товар с ID {ItemId} для позиции {PositionCode}",
-                    itemId, PositionCode);
-
-                // TODO: Обработка неожиданного товара
-                var result = await Application.Current.MainPage.DisplayAlert(
-                    "Неожиданный товар",
-                    $"Товар с кодом {scannedCode} не найден среди ожидаемых позиций для кода {PositionCode}.\n\n" +
-                    "Это может быть:\n" +
-                    "• Лишний товар на этой позиции\n" +
-                    "• Товар с другой позиции\n" +
-                    "• Ошибка сканирования\n\n" +
-                    "Добавить как незапланированный товар?",
-                    "Да",
-                    "Нет");
-
-                if (result)
-                {
-                    // TODO: Реализовать добавление незапланированного товара
-                    await Application.Current.MainPage.DisplayAlert(
-                        "TODO",
-                        "Функция добавления незапланированных товаров будет реализована позже",
-                        "OK");
-                }
-            }
+            return Task.FromResult(new ScanApplyResult(true, $"✓ {item.ItemName}: {item.ActualQuantity}"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при обработке отсканированного кода");
-            await Application.Current.MainPage.DisplayAlert(
-                "Ошибка",
-                $"Не удалось обработать отсканированный код: {ex.Message}",
-                "OK");
+            _logger.LogError(ex, "Ошибка при обработке кода");
+            return Task.FromResult(new ScanApplyResult(false, "Ошибка обработки кода"));
         }
     }
 }
@@ -334,7 +355,6 @@ public partial class InventoryItemVm : ObservableObject
         }
     }
 
-    // При изменении ActualQuantity обновляем зависимые свойства
     partial void OnActualQuantityChanged(int? value)
     {
         OnPropertyChanged(nameof(ActualQuantityDisplay));

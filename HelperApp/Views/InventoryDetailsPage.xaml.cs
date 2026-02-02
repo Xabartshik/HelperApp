@@ -16,7 +16,6 @@ public partial class InventoryDetailsPage : ContentPage
             _scannedCode = value;
             if (!string.IsNullOrWhiteSpace(value))
             {
-                // Передаем отсканированный код в активную группу
                 MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     await ProcessScannedCodeAsync(value);
@@ -38,20 +37,16 @@ public partial class InventoryDetailsPage : ContentPage
         await _viewModel.InitializeAsync();
     }
 
-    protected override void OnDisappearing()
-    {
-        base.OnDisappearing();
-        _viewModel.Cleanup();
-    }
-
     private async Task ProcessScannedCodeAsync(string scannedCode)
     {
-        // Находим раскрытую (активную) группу
         var activeGroup = _viewModel.GroupedInventoryItems.FirstOrDefault(g => g.IsExpanded);
 
         if (activeGroup != null)
         {
-            await activeGroup.ProcessScannedCodeAsync(scannedCode);
+            var result = await activeGroup.ProcessScannedCodeAsync(scannedCode);
+
+            if (!result.IsApplied)
+                await DisplayAlert("Сканирование", result.Message, "OK");
         }
         else
         {
