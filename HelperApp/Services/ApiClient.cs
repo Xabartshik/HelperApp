@@ -11,9 +11,10 @@ namespace HelperApp.Services;
 
 public class ApiClient : IApiClient
 {
-    private const string HasNewTasksForWorkerRouteTemplate = "Inventory/worker/{0}/check-new";
-    private const string GetNewAssignmentsForWorkerRouteTemplate = "Inventory/worker/{0}/new-tasks";
-    private const string GetInventoryTaskDetailsRouteTemplate = "Inventory/worker/{0}/tasks/{1}/details";
+    private const string HasNewTasksForWorkerRouteTemplate = "v1/Inventory/worker/{0}/check-new";
+    private const string GetNewAssignmentsForWorkerRouteTemplate = "v1/Inventory/worker/{0}/new-tasks";
+    private const string GetInventoryTaskDetailsRouteTemplate = "v1/Inventory/worker/{0}/tasks/{1}/details";
+    private const string GetItemInfoRouteTemplate = "Item/{0}";
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<ApiClient> _logger;
@@ -49,14 +50,14 @@ public class ApiClient : IApiClient
         if (isEmulator)
         {
             _logger.LogInformation("Обнаружен Android эмулятор, используем 10.0.2.2");
-            return "http://10.0.2.2:5000/api/v1/";
+            return "http://10.0.2.2:5000/api/";
         }
         else
         {
             // Для физического Android устройства
             // ВАЖНО: Замените на IP адрес вашего компьютера!
             // Узнать можно командой: ipconfig (Windows) или ifconfig (Linux/Mac)
-            var physicalDeviceAddress = "http://192.168.0.100:5000/api/v1/";
+            var physicalDeviceAddress = "http://192.168.0.100:5000/api/";
 
             _logger.LogInformation("Обнаружено физическое Android устройство, используем {Address}", physicalDeviceAddress);
             return physicalDeviceAddress;
@@ -64,11 +65,11 @@ public class ApiClient : IApiClient
 #elif IOS
         // Для iOS симулятора localhost работает напрямую
         _logger.LogInformation("iOS платформа, используем localhost");
-        return "http://localhost:5000/api/v1/";
+        return "http://localhost:5000/api/";
 #else
         // Для других платформ (Windows, MacCatalyst и т.д.)
         _logger.LogInformation("Другая платформа, используем localhost");
-        return "http://localhost:5000/api/v1/";
+        return "http://localhost:5000/api/";
 #endif
     }
 
@@ -128,13 +129,26 @@ public class ApiClient : IApiClient
 
     public async Task<T?> GetAsync<T>(string endpoint, CancellationToken ct = default)
     {
+        HttpResponseMessage? response = null;
         try
         {
             _hasNetwork = true;
 
-            using var response = await _httpClient.GetAsync(endpoint, ct);
+            var fullUrl = $"{_httpClient.BaseAddress}{endpoint}";
+            _logger.LogInformation("GET запрос: {Url}", fullUrl);
+
+            response = await _httpClient.GetAsync(endpoint, ct);
+
+            _logger.LogInformation("Получен ответ: {StatusCode} для {Endpoint}", response.StatusCode, endpoint);
+
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("Ресурс не найден: {Endpoint}", endpoint);
+                throw new NotFoundException($"Ресурс не найден: {endpoint}");
+            }
 
             response.EnsureSuccessStatusCode();
 
@@ -144,21 +158,42 @@ public class ApiClient : IApiClient
 
             return JsonSerializer.Deserialize<T>(content, _jsonOptions);
         }
+        catch (HttpRequestException ex) when (response != null)
+        {
+            // Если получили ответ от сервера, но он не успешный - это не проблема сети
+            _logger.LogError(ex, "HTTP ошибка при GET {Endpoint}: {StatusCode}", endpoint, response.StatusCode);
+            throw;
+        }
         catch (HttpRequestException ex)
         {
+            // Если не получили ответ вообще - проблема сети
             _hasNetwork = false;
             _logger.LogError(ex, "Ошибка сети при GET {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Таймаут при GET {Endpoint}", endpoint);
+            throw new TimeoutException("Превышено время ожидания ответа", ex);
+        }
+        catch (NotFoundException)
+        {
+            throw; // Пробрасываем дальше
+        }
+        catch (UnauthorizedException)
+        {
+            throw; // Пробрасываем дальше
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при GET {Endpoint}", endpoint);
+            _logger.LogError(ex, "Неожиданная ошибка при GET {Endpoint}", endpoint);
             throw;
         }
     }
 
     public async Task<T?> PostAsync<T>(string endpoint, object? data = null, CancellationToken ct = default)
     {
+        HttpResponseMessage? response = null;
         try
         {
             _hasNetwork = true;
@@ -170,9 +205,21 @@ public class ApiClient : IApiClient
                 content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
-            using var response = await _httpClient.PostAsync(endpoint, content, ct);
+            var fullUrl = $"{_httpClient.BaseAddress}{endpoint}";
+            _logger.LogInformation("POST запрос: {Url}", fullUrl);
+
+            response = await _httpClient.PostAsync(endpoint, content, ct);
+
+            _logger.LogInformation("Получен ответ: {StatusCode} для {Endpoint}", response.StatusCode, endpoint);
+
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("Ресурс не найден: {Endpoint}", endpoint);
+                throw new NotFoundException($"Ресурс не найден: {endpoint}");
+            }
 
             response.EnsureSuccessStatusCode();
 
@@ -182,28 +229,61 @@ public class ApiClient : IApiClient
 
             return JsonSerializer.Deserialize<T>(responseContent, _jsonOptions);
         }
+        catch (HttpRequestException ex) when (response != null)
+        {
+            // Если получили ответ от сервера, но он не успешный - это не проблема сети
+            _logger.LogError(ex, "HTTP ошибка при POST {Endpoint}: {StatusCode}", endpoint, response.StatusCode);
+            throw;
+        }
         catch (HttpRequestException ex)
         {
+            // Если не получили ответ вообще - проблема сети
             _hasNetwork = false;
             _logger.LogError(ex, "Ошибка сети при POST {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Таймаут при POST {Endpoint}", endpoint);
+            throw new TimeoutException("Превышено время ожидания ответа", ex);
+        }
+        catch (NotFoundException)
+        {
+            throw; // Пробрасываем дальше
+        }
+        catch (UnauthorizedException)
+        {
+            throw; // Пробрасываем дальше
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при POST {Endpoint}", endpoint);
+            _logger.LogError(ex, "Неожиданная ошибка при POST {Endpoint}", endpoint);
             throw;
         }
     }
 
     public async Task<T?> PostAsync<T>(string endpoint, HttpContent content, CancellationToken ct = default)
     {
+        HttpResponseMessage? response = null;
         try
         {
             _hasNetwork = true;
 
-            using var response = await _httpClient.PostAsync(endpoint, content, ct);
+            var fullUrl = $"{_httpClient.BaseAddress}{endpoint}";
+            _logger.LogInformation("POST запрос: {Url}", fullUrl);
+
+            response = await _httpClient.PostAsync(endpoint, content, ct);
+
+            _logger.LogInformation("Получен ответ: {StatusCode} для {Endpoint}", response.StatusCode, endpoint);
+
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 throw new UnauthorizedException("Токен истёк или невалиден");
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                _logger.LogWarning("Ресурс не найден: {Endpoint}", endpoint);
+                throw new NotFoundException($"Ресурс не найден: {endpoint}");
+            }
 
             response.EnsureSuccessStatusCode();
 
@@ -213,15 +293,35 @@ public class ApiClient : IApiClient
 
             return JsonSerializer.Deserialize<T>(responseContent, _jsonOptions);
         }
+        catch (HttpRequestException ex) when (response != null)
+        {
+            // Если получили ответ от сервера, но он не успешный - это не проблема сети
+            _logger.LogError(ex, "HTTP ошибка при POST {Endpoint}: {StatusCode}", endpoint, response.StatusCode);
+            throw;
+        }
         catch (HttpRequestException ex)
         {
+            // Если не получили ответ вообще - проблема сети
             _hasNetwork = false;
             _logger.LogError(ex, "Ошибка сети при POST {Endpoint}", endpoint);
             throw new NoNetworkException("Нет подключения к сети", ex);
         }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogError(ex, "Таймаут при POST {Endpoint}", endpoint);
+            throw new TimeoutException("Превышено время ожидания ответа", ex);
+        }
+        catch (NotFoundException)
+        {
+            throw; // Пробрасываем дальше
+        }
+        catch (UnauthorizedException)
+        {
+            throw; // Пробрасываем дальше
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Ошибка при POST {Endpoint}", endpoint);
+            _logger.LogError(ex, "Неожиданная ошибка при POST {Endpoint}", endpoint);
             throw;
         }
     }
@@ -250,6 +350,12 @@ public class ApiClient : IApiClient
         return GetAsync<InventoryTaskDetailsDto>(endpoint, cancellationToken);
     }
 
+    public Task<ItemInfoDto?> GetItemInfoAsync(int itemId, CancellationToken cancellationToken = default)
+    {
+        var endpoint = string.Format(GetItemInfoRouteTemplate, itemId);
+        return GetAsync<ItemInfoDto>(endpoint, cancellationToken);
+    }
+
     // ===== Исключения =====
     public class NoNetworkException : Exception
     {
@@ -259,5 +365,10 @@ public class ApiClient : IApiClient
     public class UnauthorizedException : Exception
     {
         public UnauthorizedException(string message) : base(message) { }
+    }
+
+    public class NotFoundException : Exception
+    {
+        public NotFoundException(string message) : base(message) { }
     }
 }
