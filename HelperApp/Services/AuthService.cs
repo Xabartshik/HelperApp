@@ -39,7 +39,7 @@ public sealed class AuthService : IAuthService
                 Password = password
             };
 
-            var response = await _apiClient.PostAsync<LoginResponse>("mobileappuser/login", loginRequest);
+            var response = await _apiClient.PostAsync<LoginResponse>("/api/v1/mobileappuser/login", loginRequest);
             if (response?.AccessToken == null)
             {
                 _logger.LogWarning("Пустой токен от сервера");

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using HelperApp.Messages;
 using HelperApp.Models;
+using HelperApp.Models.Inventory;
 using HelperApp.Services;
 using System.Collections.ObjectModel;
 
@@ -36,7 +37,7 @@ public partial class InventoryDetailsViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string errorMessage = string.Empty;
 
-    // Чтобы не перезагружать и не затирать ActualQuantity при каждом OnAppearing (например, при возврате со сканера)
+    // Чтобы не перезагружать и не затирать ActualQuantity при каждом OnAppearing
     private int _loadedWorkerId;
     private int _loadedAssignmentId;
     private bool _isLoaded;
@@ -74,7 +75,6 @@ public partial class InventoryDetailsViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(payload.PositionCode) || string.IsNullOrWhiteSpace(payload.Barcode))
             return;
 
-        // Если данные ещё не загружены — просто игнорируем (сканер всё равно может продолжать, но применять будет некуда)
         if (GroupedInventoryItems.Count == 0)
             return;
 
@@ -94,7 +94,6 @@ public partial class InventoryDetailsViewModel : ObservableObject
             OnPropertyChanged(nameof(GroupedInventoryItems));
         });
 
-        // Статистика обновится через ItemsUpdated, но если код не применился — тоже отдадим фидбек
         if (result.IsApplied)
             UpdateStatistics();
 
@@ -140,11 +139,9 @@ public partial class InventoryDetailsViewModel : ObservableObject
                 return;
             }
 
-            // Header
             InitiatedAt = dto.InitiatedAt;
             ZoneCodeShortDescription = dto.ZoneCode;
             ZoneCodeFullDescription = dto.ZoneCode;
-
             Status = "В процессе";
             Description = $"Инвентаризация зоны {dto.ZoneCode}";
 
@@ -156,9 +153,10 @@ public partial class InventoryDetailsViewModel : ObservableObject
 
             foreach (var group in grouped)
             {
-                var items = group.Select(item => new InventoryItemVm
+                var items = group.Select(item => new InventoryItemVm(_logger)
                 {
                     ItemId = item.ItemId,
+                    LineId = item.LineId,
                     ItemName = item.ItemName,
                     PositionCode = item.PositionCode,
                     ExpectedQuantity = item.ExpectedQuantity,
@@ -173,6 +171,12 @@ public partial class InventoryDetailsViewModel : ObservableObject
                 };
 
                 groupVm.ItemsUpdated += OnGroupItemsUpdated;
+
+                // Подписываемся на обновления от каждого элемента
+                foreach (var item in groupVm.Items)
+                {
+                    item.ItemUpdated += OnGroupItemsUpdated;
+                }
 
                 GroupedInventoryItems.Add(groupVm);
             }
@@ -214,6 +218,119 @@ public partial class InventoryDetailsViewModel : ObservableObject
         HasVariances = VarianceCount > 0;
     }
 
+    /// <summary>
+    /// Завершить инвентаризацию
+    /// </summary>
+    [RelayCommand]
+    private async Task CompleteInventory()
+    {
+        try
+        {
+            // Проверка: все ли позиции отсканированы
+            var allItems = GroupedInventoryItems.SelectMany(g => g.Items).ToList();
+            var unscannedItems = allItems.Where(i => !i.ActualQuantity.HasValue).ToList();
+
+            if (unscannedItems.Any())
+            {
+                bool shouldContinue = await Application.Current!.MainPage!.DisplayAlert(
+                    "Неотсканированные позиции",
+                    $"Осталось {unscannedItems.Count} непроверенных позиций.\n\nНепроверенные позиции будут учтены как отсутствующие (0 шт.).\n\nПродолжить завершение?",
+                    "Да, завершить",
+                    "Отмена");
+
+                if (!shouldContinue)
+                    return;
+            }
+
+            // Подтверждение завершения
+            bool confirmed = await Application.Current!.MainPage!.DisplayAlert(
+                "Завершение инвентаризации",
+                $"Проверено: {ScannedItemsCount} из {TotalItems}\nРасхождений: {VarianceCount}\n\nЗавершить инвентаризацию?",
+                "Завершить",
+                "Отмена");
+
+            if (!confirmed)
+                return;
+
+            IsBusy = true;
+
+            // Формируем DTO
+            var dto = new CompleteAssignmentDto
+            {
+                AssignmentId = AssignmentId,
+                WorkerId = WorkerId,
+                Lines = allItems.Select(item => new CompleteAssignmentLineDto
+                {
+                    LineId = item.LineId,
+                    ItemId = item.ItemId,
+                    PositionCode = item.PositionCode,
+                    ActualQuantity = item.ActualQuantity ?? 0  // Непроверенные = 0
+                }).ToList()
+            };
+
+            // Отправляем на сервер
+            var result = await _apiClient.CompleteInventoryAssignmentAsync(dto);
+
+            if (result == null)
+            {
+                await Application.Current!.MainPage!.DisplayAlert(
+                    "Ошибка",
+                    "Не удалось завершить инвентаризацию. Сервер не вернул результат.",
+                    "OK");
+                return;
+            }
+
+            _logger.LogInformation(
+                "Инвентаризация завершена успешно. AssignmentId={AssignmentId}, Message={Message}",
+                AssignmentId, result.Message);
+
+            // Показываем отчёт
+            await ShowCompletionReportAsync(result);
+
+            // Возвращаемся на главную страницу
+            await Shell.Current.GoToAsync("//main");
+        }
+        catch (ApiClient.NoNetworkException)
+        {
+            await Application.Current!.MainPage!.DisplayAlert("Ошибка", "Нет подключения к сети", "OK");
+        }
+        catch (ApiClient.UnauthorizedException)
+        {
+            await Application.Current!.MainPage!.DisplayAlert("Ошибка", "Сессия истекла. Войдите заново.", "OK");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при завершении инвентаризации");
+            await Application.Current!.MainPage!.DisplayAlert("Ошибка", $"Ошибка: {ex.Message}", "OK");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ShowCompletionReportAsync(CompleteAssignmentResultDto result)
+    {
+        var report = $"✅ Инвентаризация завершена\n\n" +
+                     $"Всего позиций: {result.Statistics?.TotalPositions ?? 0}\n" +
+                     $"Проверено: {result.Statistics?.CountedPositions ?? 0}\n" +
+                     $"Прогресс: {result.Statistics?.CompletionPercentage:F1}%\n\n" +
+                     $"Расхождений: {result.Statistics?.DiscrepancyCount ?? 0}\n";
+
+        if ((result.Statistics?.DiscrepancyCount ?? 0) > 0)
+        {
+            report += $"  ├ Излишков: {result.Statistics!.SurplusCount} (+{result.Statistics.TotalSurplusQuantity} шт.)\n" +
+                      $"  └ Недостач: {result.Statistics.ShortageCount} (-{result.Statistics.TotalShortageQuantity} шт.)\n\n";
+        }
+
+        report += $"{result.Message}";
+
+        await Application.Current!.MainPage!.DisplayAlert(
+            "Отчёт о завершении",
+            report,
+            "OK");
+    }
+
     [RelayCommand]
     public async Task GoBack()
     {
@@ -224,7 +341,14 @@ public partial class InventoryDetailsViewModel : ObservableObject
     public void Cleanup()
     {
         foreach (var group in GroupedInventoryItems)
+        {
             group.ItemsUpdated -= OnGroupItemsUpdated;
+
+            foreach (var item in group.Items)
+            {
+                item.ItemUpdated -= OnGroupItemsUpdated;
+            }
+        }
 
         if (_messengerRegistered)
         {
@@ -284,12 +408,12 @@ public partial class InventoryGroupVm : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при открытии сканера");
-            await Application.Current.MainPage.DisplayAlert("Ошибка", $"Не удалось открыть сканер: {ex.Message}", "OK");
+            await Application.Current!.MainPage!.DisplayAlert("Ошибка", $"Не удалось открыть сканер: {ex.Message}", "OK");
         }
     }
 
     /// <summary>
-    /// Обрабатывает отсканированный код (без UI-диалогов, чтобы не мешать непрерывному сканированию)
+    /// Обрабатывает отсканированный код
     /// </summary>
     public async Task<ScanApplyResult> ProcessScannedCodeAsync(string scannedCode, IApiClient apiClient, Action onItemsChanged)
     {
@@ -300,22 +424,20 @@ public partial class InventoryGroupVm : ObservableObject
         {
             _logger.LogInformation("Обработка кода: {Code} для позиции {PositionCode}", scannedCode, PositionCode);
 
-            // Текущее допущение проекта: scannedCode == ItemId (строкой)
             if (!int.TryParse(scannedCode, out int itemId))
                 return new ScanApplyResult(false, $"Неверный формат: {scannedCode}");
 
             var item = Items.FirstOrDefault(i => i.ItemId == itemId);
             if (item is null)
             {
-                // Товар не найден среди ожидаемых - запрашиваем информацию у сервера
+                // Товар не найден среди ожидаемых
                 try
                 {
                     var itemInfo = await apiClient.GetItemInfoAsync(itemId);
                     if (itemInfo == null)
                         return new ScanApplyResult(false, $"Товар с ID {itemId} не найден в базе");
 
-                    // Показываем диалог с выбором
-                    bool shouldAddItem = await Application.Current.MainPage.DisplayAlert(
+                    bool shouldAddItem = await Application.Current!.MainPage!.DisplayAlert(
                         "Товар не найден",
                         $"Товар \"{itemInfo.Name}\" не найден в ожидаемых для данной позиции.\n\nУчесть товар?",
                         "Учесть товар",
@@ -323,9 +445,9 @@ public partial class InventoryGroupVm : ObservableObject
 
                     if (shouldAddItem)
                     {
-                        // Создаём новый элемент без ожидаемого количества
-                        var newItem = new InventoryItemVm
+                        var newItem = new InventoryItemVm(_logger)
                         {
+                            LineId = null,
                             ItemId = itemInfo.ItemId,
                             ItemName = itemInfo.Name,
                             PositionCode = PositionCode,
@@ -333,6 +455,7 @@ public partial class InventoryGroupVm : ObservableObject
                             ActualQuantity = 1
                         };
 
+                        newItem.ItemUpdated += (s, e) => ItemsUpdated?.Invoke(this, EventArgs.Empty);
                         Items.Add(newItem);
 
                         _logger.LogInformation("Добавлен неожиданный товар {ItemName} (ID: {ItemId}) в позицию {PositionCode}",
@@ -354,7 +477,7 @@ public partial class InventoryGroupVm : ObservableObject
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Ошибка при получении информации о товаре {ItemId}", itemId);
-                    return new ScanApplyResult(false, $"Ошибка при получении информации о товаре: {ex.Message}");
+                    return new ScanApplyResult(false, $"Ошибка: {ex.Message}");
                 }
             }
 
@@ -378,11 +501,21 @@ public partial class InventoryGroupVm : ObservableObject
 
 public partial class InventoryItemVm : ObservableObject
 {
+    private readonly ILogger _logger;
+
+    [ObservableProperty] private int? lineId;
     [ObservableProperty] private int itemId;
     [ObservableProperty] private string itemName = string.Empty;
     [ObservableProperty] private string positionCode = string.Empty;
     [ObservableProperty] private int? expectedQuantity;
     [ObservableProperty] private int? actualQuantity;
+
+    public event EventHandler? ItemUpdated;
+
+    public InventoryItemVm(ILogger logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     public string ExpectedQuantityDisplay => ExpectedQuantity?.ToString() ?? "—";
     public string ActualQuantityDisplay => ActualQuantity?.ToString() ?? "—";
@@ -392,7 +525,8 @@ public partial class InventoryItemVm : ObservableObject
         get
         {
             if (!ActualQuantity.HasValue) return Color.FromArgb("#888888");
-            if (!ExpectedQuantity.HasValue) return Color.FromArgb("#ff6b6b"); // неожиданный товар - красный
+            if (!ExpectedQuantity.HasValue) return Color.FromArgb("#ff6b6b"); // неожиданный товар
+            if (ActualQuantity == 0) return Color.FromArgb("#ff6b6b"); // отсутствует
             if (ActualQuantity == ExpectedQuantity) return Color.FromArgb("#7c3aed");
             return Color.FromArgb("#ff6b6b");
         }
@@ -404,11 +538,63 @@ public partial class InventoryItemVm : ObservableObject
     {
         get
         {
-            if (!ActualQuantity.HasValue) return "Не отсканирована";
+            if (!ActualQuantity.HasValue) return "Не проверено";
             if (!ExpectedQuantity.HasValue) return "⚠ Неожиданный товар";
+            if (ActualQuantity == 0) return "⚠ Отсутствует";
             if (ActualQuantity == ExpectedQuantity) return "✓ Совпадение";
             var diff = ActualQuantity.Value - ExpectedQuantity.Value;
-            return diff > 0 ? $"⚠ +{diff}" : $"⚠ {diff}";
+            return diff > 0 ? $"⚠ Излишек: +{diff}" : $"⚠ Недостача: {diff}";
+        }
+    }
+
+    /// <summary>
+    /// Отметить товар как отсутствующий
+    /// </summary>
+    [RelayCommand]
+    private void MarkAsAbsent()
+    {
+        ActualQuantity = 0;
+        _logger.LogInformation("Товар {ItemName} (ID: {ItemId}) отмечен как отсутствующий", ItemName, ItemId);
+    }
+
+    /// <summary>
+    /// Ввести количество вручную
+    /// </summary>
+    [RelayCommand]
+    private async Task EnterManually()
+    {
+        try
+        {
+            string result = await Application.Current!.MainPage!.DisplayPromptAsync(
+                "Ввод количества",
+                $"Товар: {ItemName}\nВведите фактическое количество:",
+                initialValue: ActualQuantity?.ToString() ?? "0",
+                keyboard: Keyboard.Numeric);
+
+            if (string.IsNullOrWhiteSpace(result))
+                return;
+
+            if (int.TryParse(result, out int quantity) && quantity >= 0)
+            {
+                ActualQuantity = quantity;
+                _logger.LogInformation("Вручную введено количество для товара {ItemName} (ID: {ItemId}): {Quantity}",
+                    ItemName, ItemId, quantity);
+            }
+            else
+            {
+                await Application.Current!.MainPage!.DisplayAlert(
+                    "Ошибка",
+                    "Введите корректное число (0 или больше)",
+                    "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ошибка при ручном вводе количества");
+            await Application.Current!.MainPage!.DisplayAlert(
+                "Ошибка",
+                $"Не удалось ввести количество: {ex.Message}",
+                "OK");
         }
     }
 
@@ -425,5 +611,6 @@ public partial class InventoryItemVm : ObservableObject
         OnPropertyChanged(nameof(ActualQuantityColor));
         OnPropertyChanged(nameof(IsCompleted));
         OnPropertyChanged(nameof(StatusText));
+        ItemUpdated?.Invoke(this, EventArgs.Empty);
     }
 }

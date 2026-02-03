@@ -14,7 +14,8 @@ public class ApiClient : IApiClient
     private const string HasNewTasksForWorkerRouteTemplate = "v1/Inventory/worker/{0}/check-new";
     private const string GetNewAssignmentsForWorkerRouteTemplate = "v1/Inventory/worker/{0}/new-tasks";
     private const string GetInventoryTaskDetailsRouteTemplate = "v1/Inventory/worker/{0}/tasks/{1}/details";
-    private const string GetItemInfoRouteTemplate = "Item/{0}";
+    private const string GetItemInfoRouteTemplate = "v1/Item/{0}";
+    private const string CompleteAssignmentTemplate = "v1/Inventory/complete-assignment";
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<ApiClient> _logger;
@@ -55,8 +56,6 @@ public class ApiClient : IApiClient
         else
         {
             // Для физического Android устройства
-            // ВАЖНО: Замените на IP адрес вашего компьютера!
-            // Узнать можно командой: ipconfig (Windows) или ifconfig (Linux/Mac)
             var physicalDeviceAddress = "http://192.168.0.100:5000/api/";
 
             _logger.LogInformation("Обнаружено физическое Android устройство, используем {Address}", physicalDeviceAddress);
@@ -356,6 +355,13 @@ public class ApiClient : IApiClient
         return GetAsync<ItemInfoDto>(endpoint, cancellationToken);
     }
 
+    public async Task<CompleteAssignmentResultDto?> CompleteInventoryAssignmentAsync(
+    CompleteAssignmentDto dto,
+    CancellationToken cancellationToken = default)
+    {
+        var endpoint = CompleteAssignmentTemplate;
+        return await PostAsync<CompleteAssignmentResultDto>(endpoint, dto, cancellationToken);
+    }
     // ===== Исключения =====
     public class NoNetworkException : Exception
     {

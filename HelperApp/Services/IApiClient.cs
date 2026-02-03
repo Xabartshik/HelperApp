@@ -17,4 +17,5 @@ public interface IApiClient
     Task<List<InventoryAssignmentDetailedWithItemDto>?> GetNewAssignmentsForWorkerAsync(int workerId, CancellationToken cancellationToken = default);
     Task<InventoryTaskDetailsDto?> GetInventoryTaskDetailsAsync(int userId, int inventoryTaskId, CancellationToken cancellationToken = default);
     Task<ItemInfoDto?> GetItemInfoAsync(int itemId, CancellationToken cancellationToken = default);
+    Task<CompleteAssignmentResultDto?> CompleteInventoryAssignmentAsync(CompleteAssignmentDto dto, CancellationToken cancellationToken = default);
 }

@@ -18,6 +18,7 @@ namespace HelperApp.Models
     public class InventoryItemDto
     {
         public int ItemId { get; set; }
+        public int? LineId { get; set; }
         public string ItemName { get; set; } = null!;
         public string PositionCode { get; set; } = null!;
         public int PositionId { get; set; }
