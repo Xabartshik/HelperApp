@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/.agents/workflows
+/error_helperapp.txt
+/error_helperapp_2.txt
+/error_helperapp_3.txt
