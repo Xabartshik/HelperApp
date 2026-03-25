@@ -20,18 +20,27 @@
                 <Label Text="{Binding Role, StringFormat='Должность: {0}'}" FontSize="14" />
             </VerticalStackLayout>
 
-            <!-- Logout Button -->
-            <Button
-                Grid.Column="1"
-                Text="Выход"
-                Command="{Binding LogoutCommand}"
-                BackgroundColor="#ff6b6b"
-                TextColor="#ffffff"
-                FontSize="13"
-                CornerRadius="6"
-                Padding="15,8"
-                VerticalOptions="Center" />
+            <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="Center">
+                <Button 
+                    IsVisible="{Binding IsBoss}"
+                    Text="Панель руководителя"
+                    Command="{Binding NavigateToBossPanelCommand}"
+                    BackgroundColor="#7c3aed"
+                    TextColor="#ffffff"
+                    FontSize="12"
+                    CornerRadius="6"
+                    Padding="15,8" />
 
+                <!-- Logout Button -->
+                <Button
+                    Text="Выход"
+                    Command="{Binding LogoutCommand}"
+                    BackgroundColor="#ff6b6b"
+                    TextColor="#ffffff"
+                    FontSize="13"
+                    CornerRadius="6"
+                    Padding="15,8" />
+            </HorizontalStackLayout>
         </Grid>
 
         <!-- No Network Alert -->

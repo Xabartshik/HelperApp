@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool isBusy;
     [ObservableProperty] private string errorMessage = string.Empty;
     [ObservableProperty] private bool hasNetwork = true;
+    [ObservableProperty] private bool isBoss;
 
     [ObservableProperty] private ObservableCollection<TaskItemBase> rawTasks = new();
     [ObservableProperty] private ObservableCollection<TaskCardVm> taskCards = new();
@@ -67,6 +68,7 @@ public partial class MainViewModel : ObservableObject
         LastName = currentUser.LastName;
         FullName = currentUser.FullName;
         Role = currentUser.Role;
+        IsBoss = Role == "Admin" || Role == "Supervisor";
 
         await RefreshTasks();
 
@@ -158,6 +160,12 @@ public partial class MainViewModel : ObservableObject
         _cts?.Cancel();
         await _authService.LogoutAsync();
         await Shell.Current.GoToAsync("///login");
+    }
+
+    [RelayCommand]
+    public async Task NavigateToBossPanel()
+    {
+        await Shell.Current.GoToAsync("BossPanelPage");
     }
 
     private async Task StartPeriodicTaskSync(CancellationToken cancellationToken)

@@ -35,12 +35,14 @@ public static class MauiProgram
             .AddTransient<MainViewModel>()
             .AddTransient<InventoryDetailsViewModel>()
             .AddTransient<BarcodeScannerViewModel>()
+            .AddTransient<BossPanelViewModel>()
 
             // Views
             .AddTransient<LoginPage>()
             .AddTransient<MainPage>()
             .AddTransient<InventoryDetailsPage>()
             .AddTransient<BarcodeScannerPage>()
+            .AddTransient<BossPanelPage>()
             .AddSingleton<AppShell>();
 
         builder.Services.AddSingleton<ITaskService, TaskControlTaskService>();

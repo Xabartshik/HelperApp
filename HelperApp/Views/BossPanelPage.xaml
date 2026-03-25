@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:HelperApp.ViewModels"
+             x:Class="HelperApp.Views.BossPanelPage"
+             Title="Панель руководителя"
+             BackgroundColor="{StaticResource OffBlack}">
+             
+    <Grid RowDefinitions="Auto, *">
+        <!-- Вкладки -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="0" BackgroundColor="{StaticResource Gray950}">
+            <Button Text="Активные задачи" 
+                    Clicked="OnTab1Clicked" 
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource White}"
+                    FontAttributes="Bold"
+                    Padding="15,10"/>
+            <Button Text="Создать задачу" 
+                    Clicked="OnTab2Clicked" 
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray400}"
+                    Padding="15,10"/>
+            <Button Text="Сотрудники" 
+                    Clicked="OnTab3Clicked" 
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray400}"
+                    Padding="15,10"/>
+        </HorizontalStackLayout>
+
+        <!-- Контейнеры для вкладок -->
+        
+        <!-- Вкладка 1: Активные задачи -->
+        <RefreshView Grid.Row="1" x:Name="Tab1View" IsVisible="True" 
+                     Command="{Binding LoadDataCommand}" IsRefreshing="{Binding IsLoading}">
+            <ScrollView>
+                <VerticalStackLayout Padding="15" Spacing="15">
+                    <Label Text="Текущие активные задачи в филиале" TextColor="{StaticResource White}" FontSize="18" FontAttributes="Bold" />
+                    
+                    <CollectionView ItemsSource="{Binding ActiveTasks}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="{StaticResource Gray900}" StrokeThickness="0" Margin="0,0,0,10" Padding="15">
+                                    <VerticalStackLayout Spacing="5">
+                                        <Label Text="{Binding Title}" TextColor="{StaticResource White}" FontSize="16" FontAttributes="Bold"/>
+                                        <Label Text="{Binding TaskType, StringFormat='Тип: {0}'}" TextColor="{StaticResource Primary}" FontSize="14"/>
+                                        <Label Text="{Binding CreatedAt, StringFormat='От: {0:dd.MM.yyyy HH:mm}'}" TextColor="{StaticResource Gray300}" FontSize="12"/>
+                                        
+                                        <Grid ColumnDefinitions="*, Auto" Margin="0,10,0,0">
+                                            <ProgressBar Progress="{Binding ProgressValue}" ProgressColor="{StaticResource Primary}" VerticalOptions="Center"/>
+                                            <Label Grid.Column="1" Text="{Binding OverallProgressPercentage, StringFormat='{0}%'}" TextColor="{StaticResource White}" Margin="10,0,0,0"/>
+                                        </Grid>
+                                        
+                                        <Label Text="Исполнители:" TextColor="{StaticResource White}" FontAttributes="Bold" Margin="0,10,0,0"/>
+                                        <CollectionView ItemsSource="{Binding Assignees}">
+                                            <CollectionView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <HorizontalStackLayout Spacing="10" Margin="0,5,0,0">
+                                                        <Label Text="•" TextColor="{StaticResource Primary}"/>
+                                                        <Label Text="{Binding FullName}" TextColor="{StaticResource White}" WidthRequest="150"/>
+                                                        <Label Text="{Binding Status}" TextColor="{StaticResource Gray300}"/>
+                                                    </HorizontalStackLayout>
+                                                </DataTemplate>
+                                            </CollectionView.ItemTemplate>
+                                        </CollectionView>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <!-- Вкладка 2: Создать задачу -->
+        <ScrollView Grid.Row="1" x:Name="Tab2View" IsVisible="False">
+            <VerticalStackLayout Padding="15" Spacing="20">
+                
+                <Border BackgroundColor="{StaticResource Gray900}" StrokeThickness="0" Padding="15">
+                    <VerticalStackLayout Spacing="15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding ToggleCreateFormCommand}" />
+                            </Grid.GestureRecognizers>
+                            
+                            <Label Text="Создание инвентаризации" TextColor="{StaticResource White}" FontSize="18" FontAttributes="Bold" VerticalOptions="Center" />
+                            
+                            <Path Grid.Column="1" Data="M 0,0 L 5,5 L 10,0" Stroke="{StaticResource White}" StrokeThickness="2" VerticalOptions="Center" HorizontalOptions="Center" Aspect="Uniform" WidthRequest="15" HeightRequest="10">
+                                <Path.Triggers>
+                                    <DataTrigger TargetType="Path" Binding="{Binding IsCreateFormExpanded}" Value="True">
+                                        <Setter Property="Rotation" Value="180" />
+                                    </DataTrigger>
+                                </Path.Triggers>
+                            </Path>
+                        </Grid>
+
+                        <VerticalStackLayout IsVisible="{Binding IsCreateFormExpanded}" Spacing="15">
+                            <Label Text="Описание задачи:" TextColor="{StaticResource White}" />
+                            <Entry Text="{Binding NewInventoryDescription}" BackgroundColor="{StaticResource OffBlack}" TextColor="{StaticResource White}" Placeholder="Введите описание..." />
+                            
+                            <Grid ColumnDefinitions="*, *">
+                                <VerticalStackLayout Grid.Column="0" Spacing="5">
+                                    <Label Text="Кол-во сотрудников:" TextColor="{StaticResource White}"/>
+                                    <Entry Keyboard="Numeric" Text="{Binding NewInventoryWorkerCount}" BackgroundColor="{StaticResource OffBlack}" TextColor="{StaticResource White}"/>
+                                </VerticalStackLayout>
+                                
+                                <VerticalStackLayout Grid.Column="1" Spacing="5" Margin="10,0,0,0">
+                                    <Label Text="Приоритет (1-10):" TextColor="{StaticResource White}"/>
+                                    <Entry Keyboard="Numeric" Text="{Binding NewInventoryPriority}" BackgroundColor="{StaticResource OffBlack}" TextColor="{StaticResource White}"/>
+                                </VerticalStackLayout>
+                            </Grid>
+                            
+                            <!-- Выбор зон / позиций (Дерево) -->
+                            <Label Text="Выбор зон (оставьте пустым для всех):" TextColor="{StaticResource White}" Margin="0,10,0,0"/>
+                            <SearchBar Text="{Binding PositionSearchText}" Placeholder="Поиск по зонам/стеллажам..." BackgroundColor="{StaticResource OffBlack}" TextColor="{StaticResource White}" HeightRequest="40" Margin="0,0,0,5" />
+
+                            <Border BackgroundColor="{StaticResource Gray950}" 
+        StrokeThickness="0" 
+        StrokeShape="RoundRectangle 8">
+                                <!-- CollectionView НЕ оборачивается в ScrollView: это вызывает зависание в MAUI -->
+                                <CollectionView ItemsSource="{Binding FlatPositionTree}" HeightRequest="280" Margin="6,4">
+
+                                    <CollectionView.ItemsLayout>
+                                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
+                                    </CollectionView.ItemsLayout>
+
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate>
+                                            <!-- Строка узла: BoxView-спейсер слева, шеврон, чекбокс, текст -->
+                                            <Grid ColumnDefinitions="Auto, Auto, Auto, *" ColumnSpacing="4" Padding="0,1">
+                                                <!-- Спейсер-отступ по уровню (20px × Level) -->
+                                                <BoxView Grid.Column="0"
+                                                         WidthRequest="{Binding Indent}"
+                                                         HeightRequest="1"
+                                                         Color="Transparent" />
+                                                <!-- Шеврон ► : виден только у узлов с детьми -->
+                                                <Label Grid.Column="1"
+                                                       Text="&#x25B6;"
+                                                       TextColor="{StaticResource Gray400}"
+                                                       FontSize="9"
+                                                       IsVisible="{Binding HasChildren}"
+                                                       VerticalOptions="Center"
+                                                       WidthRequest="16"
+                                                       HorizontalTextAlignment="Center"
+                                                       Rotation="{Binding ChevronRotation}">
+                                                    <Label.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding ToggleExpandCommand}" />
+                                                    </Label.GestureRecognizers>
+                                                </Label>
+                                                <!-- Заглушка для листовых узлов -->
+                                                <BoxView Grid.Column="1"
+                                                         WidthRequest="16"
+                                                         IsVisible="{Binding IsLeaf}"
+                                                         Color="Transparent" />
+                                                <!-- Чекбокс -->
+                                                <CheckBox Grid.Column="2"
+                                                          IsChecked="{Binding IsSelected}"
+                                                          Color="{StaticResource Primary}"
+                                                          VerticalOptions="Center" />
+                                                <!-- Текст узла; тап по тексту тоже сворачивает/разворачивает -->
+                                                <Label Grid.Column="3"
+                                                       Text="{Binding Title}"
+                                                       TextColor="{StaticResource White}"
+                                                       VerticalOptions="Center"
+                                                       FontSize="13"
+                                                       LineBreakMode="TailTruncation">
+                                                    <Label.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding ToggleExpandCommand}" />
+                                                    </Label.GestureRecognizers>
+                                                </Label>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </Border>
+                            <!-- Выбор сотрудников -->
+                            <Label Text="Выбор сотрудников:" TextColor="{StaticResource White}" FontAttributes="Bold" Margin="0,10,0,0"/>
+                            
+                            <!-- Блок авто-выбора -->
+                            <Border BackgroundColor="{StaticResource OffBlack}" StrokeThickness="1" Stroke="{StaticResource Gray950}" Padding="10">
+                                <Grid ColumnDefinitions="*, Auto" ColumnSpacing="10" VerticalOptions="Center">
+                                    <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center">
+                                        <Label Text="Авто-подбор:" TextColor="{StaticResource White}" VerticalOptions="Center"/>
+                                        <Entry Keyboard="Numeric" Text="{Binding AutoSelectWorkerCount}" WidthRequest="60" BackgroundColor="{StaticResource Gray950}" TextColor="{StaticResource White}" HorizontalTextAlignment="Center"/>
+                                        <Label Text="чел." TextColor="{StaticResource Gray400}" VerticalOptions="Center"/>
+                                    </HorizontalStackLayout>
+                                    <Button Grid.Column="1" Text="Подобрать" Command="{Binding AutoSelectEmployeesCommand}" BackgroundColor="{StaticResource Primary}" TextColor="{StaticResource White}" Padding="15,5" CornerRadius="5"/>
+                                </Grid>
+                            </Border>
+
+                            <Label Text="Ручной выбор / Доступные:" TextColor="{StaticResource Gray400}" FontSize="12" Margin="0,10,0,0"/>
+                            <CollectionView ItemsSource="{Binding SelectableEmployees}" HeightRequest="150">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <HorizontalStackLayout Spacing="10" Margin="0,5">
+                                            <CheckBox IsChecked="{Binding IsSelected}" Color="{StaticResource Primary}" />
+                                            <Label Text="{Binding Item.FullName}" TextColor="{StaticResource White}" VerticalOptions="Center" />
+                                            <Label Text="{Binding Item.ActiveTasksCount, StringFormat='(Задач: {0})'}" TextColor="{StaticResource Gray400}" VerticalOptions="Center" />
+                                            <Label Text="★" TextColor="Gold" IsVisible="{Binding Item.IsRecommended}" VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <Button Text="Отправить задачу" 
+                                    Command="{Binding CreateInventoryCommand}" 
+                                    BackgroundColor="{StaticResource Primary}" 
+                                    TextColor="{StaticResource White}" 
+                                    FontAttributes="Bold" 
+                                    Margin="0,10,0,0" />
+
+                            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding ErrorMessage, Converter={StaticResource NotNullOrEmptyConverter}}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Вкладка 3: Сотрудники -->
+        <RefreshView Grid.Row="1" x:Name="Tab3View" IsVisible="False"
+                     Command="{Binding LoadDataCommand}" IsRefreshing="{Binding IsLoading}">
+            <ScrollView>
+                <VerticalStackLayout Padding="15" Spacing="15">
+                    <Label Text="Нагрузка сотрудников и статус" TextColor="{StaticResource White}" FontSize="18" FontAttributes="Bold" />
+                    
+                    <CollectionView ItemsSource="{Binding EmployeeWorkloads}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="{StaticResource Gray900}" StrokeThickness="0" Margin="0,0,0,10" Padding="15">
+                                    <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
+                                        
+                                        <VerticalStackLayout Grid.Row="0" Grid.Column="0">
+                                            <Label Text="{Binding FullName}" TextColor="{StaticResource White}" FontSize="16" FontAttributes="Bold"/>
+                                            <HorizontalStackLayout Spacing="5" Margin="0,5,0,0">
+                                                <BoxView Color="{StaticResource Gray600}" WidthRequest="10" HeightRequest="10" CornerRadius="5" VerticalOptions="Center"/>
+                                                <Label Text="На смене" TextColor="{StaticResource Gray300}" FontSize="12"/>
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+                                        
+                                        <VerticalStackLayout Grid.Row="0" Grid.Column="1" HorizontalOptions="End" VerticalOptions="Center">
+                                            <Label Text="{Binding ActiveTasksCount}" TextColor="{StaticResource Primary}" FontSize="20" FontAttributes="Bold" HorizontalTextAlignment="Center"/>
+                                            <Label Text="Активных задач" TextColor="{StaticResource Gray400}" FontSize="10"/>
+                                        </VerticalStackLayout>
+
+                                        <VerticalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                            <Label Text="Текущие задачи:" TextColor="{StaticResource White}" FontSize="12" IsVisible="{Binding HasActiveTasks}"/>
+                                            <CollectionView ItemsSource="{Binding ActiveTasks}">
+                                                <CollectionView.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Label Text="{Binding Title, StringFormat='- {0}'}" TextColor="{StaticResource Gray300}" FontSize="12" Margin="0,2,0,0">
+                                                            <Label.GestureRecognizers>
+                                                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:BossPanelViewModel}}, Path=TaskTappedCommand}" CommandParameter="{Binding .}" />
+                                                            </Label.GestureRecognizers>
+                                                        </Label>
+                                                    </DataTemplate>
+                                                </CollectionView.ItemTemplate>
+                                            </CollectionView>
+                                        </VerticalStackLayout>
+
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+    </Grid>
+
+</ContentPage>

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using HelperApp.Models;
 using HelperApp.Models.Inventory;
+using HelperApp.Models.BossPanel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Devices;
 
@@ -16,6 +17,16 @@ public class ApiClient : IApiClient
     private const string GetInventoryTaskDetailsRouteTemplate = "v1/Inventory/worker/{0}/tasks/{1}/details";
     private const string GetItemInfoRouteTemplate = "v1/Item/{0}";
     private const string CompleteAssignmentTemplate = "v1/Inventory/complete-assignment";
+
+    // Boss Panel Routes
+    private const string BossPanelActiveTasksRoute = "v1/bosspanel/tasks/active";
+    private const string BossPanelEmployeeWorkloadRoute = "v1/bosspanel/employees/workload";
+    private const string BossPanelAvailableEmployeesRoute = "v1/bosspanel/employees/available";
+    private const string BossPanelAutoSelectEmployeesRoute = "v1/bosspanel/employees/auto-select?count={0}";
+    private const string BossPanelCreateInventoryRoute = "v1/bosspanel/tasks/inventory/create";
+    private const string BossPanelAvailableZonesRoute = "v1/bosspanel/zones";
+    private const string BossPanelPositionsRoute = "v1/bosspanel/positions";
+    private const string BossPanelCreateInventoryByZoneRoute = "v1/bosspanel/inventory/create-by-zone";
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<ApiClient> _logger;
@@ -361,6 +372,49 @@ public class ApiClient : IApiClient
     {
         var endpoint = CompleteAssignmentTemplate;
         return await PostAsync<CompleteAssignmentResultDto>(endpoint, dto, cancellationToken);
+    }
+
+    // ===== Boss Panel =====
+
+    public Task<List<BossPanelTaskCardDto>?> GetBossPanelActiveTasksAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<List<BossPanelTaskCardDto>>(BossPanelActiveTasksRoute, cancellationToken);
+    }
+
+    public Task<List<EmployeeWorkloadDto>?> GetBossPanelEmployeeWorkloadAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<List<EmployeeWorkloadDto>>(BossPanelEmployeeWorkloadRoute, cancellationToken);
+    }
+
+    public Task<List<AvailableEmployeeDto>?> GetBossPanelAvailableEmployeesAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<List<AvailableEmployeeDto>>(BossPanelAvailableEmployeesRoute, cancellationToken);
+    }
+
+    public Task<List<int>?> GetBossPanelAutoSelectedEmployeesAsync(int count, CancellationToken cancellationToken = default)
+    {
+        var endpoint = string.Format(BossPanelAutoSelectEmployeesRoute, count);
+        return GetAsync<List<int>>(endpoint, cancellationToken);
+    }
+
+    public Task<CompleteInventoryDto?> CreateBossPanelInventoryTaskAsync(CreateInventoryTaskDto dto, CancellationToken cancellationToken = default)
+    {
+        return PostAsync<CompleteInventoryDto>(BossPanelCreateInventoryRoute, dto, cancellationToken);
+    }
+
+    public Task<List<string>?> GetBossPanelAvailableZonesAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<List<string>>(BossPanelAvailableZonesRoute, cancellationToken);
+    }
+
+    public Task<List<PositionCellDto>?> GetBossPanelPositionsAsync(CancellationToken cancellationToken = default)
+    {
+        return GetAsync<List<PositionCellDto>>(BossPanelPositionsRoute, cancellationToken);
+    }
+
+    public Task<CompleteInventoryDto?> CreateBossPanelInventoryTaskByZoneAsync(CreateInventoryByZoneDto dto, CancellationToken cancellationToken = default)
+    {
+        return PostAsync<CompleteInventoryDto>(BossPanelCreateInventoryByZoneRoute, dto, cancellationToken);
     }
     // ===== Исключения =====
     public class NoNetworkException : Exception
